@@ -1,25 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Send, Bot, User } from "lucide-react";
+import { useTypewriter } from "@/hooks/useTypewriter";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
+import { cn } from "@/lib/utils";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  isComplete?: boolean;
 }
 
 export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lastMessage = messages[messages.length - 1];
+  const { displayedText, isTyping } = useTypewriter(
+    lastMessage?.role === "assistant" && !lastMessage.isComplete
+      ? lastMessage.content
+      : "",
+    5
+  );
+
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      const scrollContainer = scrollRef.current.querySelector(
+        "[data-radix-scroll-area-viewport]"
+      );
+      if (scrollContainer) {
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+    }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, displayedText]);
+
+  useEffect(() => {
+    if (isLoading) {
+      scrollToBottom();
+    }
+  }, [isLoading]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = { role: "user", content: input };
+    const userMessage: Message = {
+      role: "user",
+      content: input,
+      isComplete: true,
+    };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
@@ -30,7 +75,6 @@ export function Chat() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [
-            ["system", "You are a helpful AI assistant."],
             ...messages.map((msg) => [msg.role, msg.content]),
             ["human", input],
           ],
@@ -43,8 +87,20 @@ export function Chat() {
       const assistantMessage: Message = {
         role: "assistant",
         content: data.content,
+        isComplete: false,
       };
       setMessages((prev) => [...prev, assistantMessage]);
+
+      setTimeout(
+        () => {
+          setMessages((prev) =>
+            prev.map((msg, idx) =>
+              idx === prev.length - 1 ? { ...msg, isComplete: true } : msg
+            )
+          );
+        },
+        Math.ceil(data.content.length / 2) * 5 + 50
+      );
     } catch (error) {
       console.error("Error sending message:", error);
     } finally {
@@ -53,55 +109,156 @@ export function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-[600px] max-w-2xl mx-auto p-4 space-y-4">
-      <Card className="flex-1 p-4">
-        <ScrollArea className="h-full pr-4">
-          <div className="space-y-4">
-            {messages.map((message, index) => (
+    <Card
+      className={cn(
+        "flex h-[calc(100vh-7rem)] flex-col overflow-hidden rounded-lg bg-background shadow-none",
+        isLoading && "animate-gradient-rotate"
+      )}
+    >
+      <ScrollArea ref={scrollRef} className="flex-1 p-4 pt-6">
+        <div className="space-y-4 px-4">
+          {messages.length === 0 ? (
+            <div className="flex h-full min-h-[300px] items-center justify-center">
+              <div className="flex flex-col items-center gap-3 text-center">
+                <Avatar className="h-12 w-12 bg-blue-500/10 text-blue-500 ring-2 ring-blue-500/20">
+                  <AvatarImage src="/avatar.png" alt="Samaritan" />
+                  <AvatarFallback>SAM</AvatarFallback>
+                </Avatar>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Welcome to Samaritan</p>
+                  <p className="text-sm text-muted-foreground">
+                    I can help you with short-term crypto trading recommendations. What would you like to know?
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            messages.map((message, index) => (
               <div
                 key={index}
-                className={`flex ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
+                className={cn(
+                  "mb-4 p-4",
+                  message.role === "assistant" &&
+                    !message.isComplete &&
+                    "loading"
+                )}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  }`}
+                  className={cn(
+                    "flex items-start gap-3 transition-all",
+                    message.role === "user" ? "flex-row-reverse" : "flex-row"
+                  )}
                 >
-                  {message.content}
+                  <Avatar
+                    className={cn(
+                      "h-8 w-8 transition-all",
+                      message.role === "assistant"
+                        ? "bg-blue-500/10 text-blue-500 ring-2 ring-blue-500/20"
+                        : "bg-muted"
+                    )}
+                  >
+                    {message.role === "assistant" ? (
+                      <AvatarImage src="/avatar.png" alt="Samaritan" />
+                    ) : (
+                      <AvatarFallback>
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div
+                    className={cn(
+                      "group relative max-w-[80%] rounded-lg px-3 py-2 transition-all",
+                      message.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/50 shadow-sm"
+                    )}
+                  >
+                    {message.role === "assistant" ? (
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                        >
+                          {message.isComplete ? message.content : displayedText}
+                        </ReactMarkdown>
+                        {!message.isComplete && (
+                          <div className="mt-1 h-4 w-4">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap text-sm">
+                        {message.content}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="max-w-[80%] rounded-lg p-3 bg-muted">
-                  Thinking...
+            ))
+          )}
+          {isLoading && (
+            <div className="flex items-start gap-3">
+              <Avatar className="h-8 w-8 bg-blue-500/10 text-blue-500 ring-2 ring-blue-500/20">
+                <AvatarImage src="/avatar.png" alt="Samaritan" />
+                <AvatarFallback>SAM</AvatarFallback>
+              </Avatar>
+              <div className="flex max-w-[80%] items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 shadow-sm">
+                <div className="flex space-x-2">
+                  <div
+                    className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/40"
+                    style={{ animationDelay: "0ms" }}
+                  />
+                  <div
+                    className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/40"
+                    style={{ animationDelay: "150ms" }}
+                  />
+                  <div
+                    className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/40"
+                    style={{ animationDelay: "300ms" }}
+                  />
                 </div>
               </div>
-            )}
-          </div>
-        </ScrollArea>
-      </Card>
-      <div className="flex space-x-2">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              sendMessage();
-            }
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+      <div className="border-t bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            sendMessage();
           }}
-          placeholder="Type your message..."
-          disabled={isLoading}
-        />
-        <Button onClick={sendMessage} disabled={isLoading}>
-          Send
-        </Button>
+          className="flex items-end gap-2"
+        >
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+            placeholder="Ask about crypto trading opportunities, market analysis, or specific assets..."
+            disabled={isLoading}
+            className="min-h-[2.5rem] max-h-[150px] resize-none rounded-md bg-background px-3 py-2 shadow-none"
+            rows={1}
+          />
+          <Button
+            type="submit"
+            size="icon"
+            disabled={isLoading || !input.trim()}
+            className="h-10 w-10 shrink-0"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
+        </form>
       </div>
-    </div>
+    </Card>
   );
 }
