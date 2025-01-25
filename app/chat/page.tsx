@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { supercharge } from "@/app/fonts";
 
 export default function ChatPage() {
   const [key, setKey] = useState(0);
@@ -35,7 +36,7 @@ export default function ChatPage() {
         <div className="h-14 px-8 flex items-center justify-between">
           <Link href="/">
             <div className="space-y-1">
-              <h2 className="font-bold text-xl">Samaritan</h2>
+              <h2 className={`text-lg ${supercharge.className} text-white`}>Samaritan</h2>
             </div>
           </Link>
           <div className="flex items-center gap-2">

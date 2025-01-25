@@ -1,6 +1,12 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowRight, LineChart, Shield, Clock } from "lucide-react";
+import {
+  ArrowRight,
+  LineChart,
+  Shield,
+  Clock,
+  CheckCircle2,
+} from "lucide-react";
 import { Header } from "@/components/header";
 
 export default function Home() {
@@ -47,7 +53,7 @@ export default function Home() {
 
             <div className="space-x-4">
               <Link href="/chat">
-                <Button size="lg" className="px-8 group">
+                <Button size="lg" className="px-8 group font-bold text-md">
                   Start Trading
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Button>

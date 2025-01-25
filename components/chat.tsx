@@ -111,7 +111,7 @@ export function Chat() {
   return (
     <Card
       className={cn(
-        "flex h-[calc(100vh-7rem)] flex-col overflow-hidden rounded-lg bg-background shadow-none",
+        "flex h-[calc(100vh-7rem)] flex-col overflow-hidden rounded-lg bg-background/80 backdrop-blur-xl border-[#00ffff33] shadow-[0_0_15px_rgba(0,255,255,0.1)]",
         isLoading && "animate-gradient-rotate"
       )}
     >
@@ -120,14 +120,17 @@ export function Chat() {
           {messages.length === 0 ? (
             <div className="flex h-full min-h-[300px] items-center justify-center">
               <div className="flex flex-col items-center gap-3 text-center">
-                <Avatar className="h-12 w-12 bg-blue-500/10 text-blue-500 ring-2 ring-blue-500/20">
+                <Avatar className="h-12 w-12 bg-cyan-500/10 text-cyan-500 ring-2 ring-cyan-500/20 animate-glow">
                   <AvatarImage src="/avatar.png" alt="Samaritan" />
                   <AvatarFallback>SAM</AvatarFallback>
                 </Avatar>
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Welcome to Samaritan</p>
+                  <p className="text-sm font-medium text-cyan-500">
+                    Welcome to Samaritan
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    I can help you with short-term crypto trading recommendations. What would you like to know?
+                    I can help you with short-term crypto trading
+                    recommendations. What would you like to know?
                   </p>
                 </div>
               </div>
@@ -151,10 +154,10 @@ export function Chat() {
                 >
                   <Avatar
                     className={cn(
-                      "h-8 w-8 transition-all",
+                      "h-8 w-8 transition-all ring-2",
                       message.role === "assistant"
-                        ? "bg-blue-500/10 text-blue-500 ring-2 ring-blue-500/20"
-                        : "bg-muted"
+                        ? "bg-cyan-500/10 text-cyan-500 ring-cyan-500/20"
+                        : "bg-violet-500/10 text-violet-500 ring-violet-500/20"
                     )}
                   >
                     {message.role === "assistant" ? (
@@ -169,21 +172,31 @@ export function Chat() {
                     className={cn(
                       "group relative max-w-[80%] rounded-lg px-3 py-2 transition-all",
                       message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted/50 shadow-sm"
+                        ? "bg-violet-500/10 text-foreground border border-violet-500/20"
+                        : "bg-cyan-500/10 border border-cyan-500/20 shadow-[0_0_10px_rgba(0,255,255,0.1)]"
                     )}
                   >
                     {message.role === "assistant" ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:whitespace-pre-wrap [&>p]:mb-4 [&>p:last-child]:mb-0">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                          components={{
+                            p: ({ children }) => <p className="whitespace-pre-wrap mb-4 last:mb-0">{children}</p>,
+                            pre: ({ children }) => <pre className="overflow-auto p-2 bg-background/50 rounded-md border border-cyan-500/20 mb-4 last:mb-0">{children}</pre>,
+                            code: ({ inline, children }) => 
+                              inline ? (
+                                <code className="bg-background/50 px-1 py-0.5 rounded-md border border-cyan-500/20">{children}</code>
+                              ) : (
+                                <code>{children}</code>
+                              ),
+                          }}
                         >
                           {message.isComplete ? message.content : displayedText}
                         </ReactMarkdown>
                         {!message.isComplete && (
                           <div className="mt-1 h-4 w-4">
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-4 w-4 animate-spin text-cyan-500" />
                           </div>
                         )}
                       </div>
@@ -199,22 +212,22 @@ export function Chat() {
           )}
           {isLoading && (
             <div className="flex items-start gap-3">
-              <Avatar className="h-8 w-8 bg-blue-500/10 text-blue-500 ring-2 ring-blue-500/20">
+              <Avatar className="h-8 w-8 bg-cyan-500/10 text-cyan-500 ring-2 ring-cyan-500/20">
                 <AvatarImage src="/avatar.png" alt="Samaritan" />
                 <AvatarFallback>SAM</AvatarFallback>
               </Avatar>
-              <div className="flex max-w-[80%] items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 shadow-sm">
+              <div className="flex max-w-[80%] items-center gap-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 px-3 py-2 shadow-[0_0_10px_rgba(0,255,255,0.1)]">
                 <div className="flex space-x-2">
                   <div
-                    className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/40"
+                    className="h-2 w-2 animate-bounce rounded-full bg-cyan-500/40"
                     style={{ animationDelay: "0ms" }}
                   />
                   <div
-                    className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/40"
+                    className="h-2 w-2 animate-bounce rounded-full bg-cyan-500/40"
                     style={{ animationDelay: "150ms" }}
                   />
                   <div
-                    className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/40"
+                    className="h-2 w-2 animate-bounce rounded-full bg-cyan-500/40"
                     style={{ animationDelay: "300ms" }}
                   />
                 </div>
@@ -223,7 +236,7 @@ export function Chat() {
           )}
         </div>
       </ScrollArea>
-      <div className="border-t bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="border-t border-cyan-500/20 bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -240,16 +253,16 @@ export function Chat() {
                 sendMessage();
               }
             }}
-            placeholder="Ask about crypto trading opportunities, market analysis, or specific assets..."
+            placeholder="Ask all things crypto..."
             disabled={isLoading}
-            className="min-h-[2.5rem] max-h-[150px] resize-none rounded-md bg-background px-3 py-2 shadow-none"
+            className="min-h-[2.5rem] max-h-[150px] resize-none rounded-md bg-background/50 border-cyan-500/20 focus:border-cyan-500/40 focus:ring-cyan-500/20 px-3 py-2 shadow-[0_0_10px_rgba(0,255,255,0.1)]"
             rows={1}
           />
           <Button
             type="submit"
             size="icon"
             disabled={isLoading || !input.trim()}
-            className="h-10 w-10 shrink-0"
+            className="h-10 w-10 shrink-0 bg-cyan-500/10 border border-cyan-500/20 text-cyan-500 hover:bg-cyan-500/20 hover:text-cyan-400"
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
