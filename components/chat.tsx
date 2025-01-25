@@ -111,7 +111,7 @@ export function Chat() {
   return (
     <Card
       className={cn(
-        "flex h-[calc(100vh-5rem)] flex-col overflow-hidden rounded-lg bg-background/80 backdrop-blur-xl border-[#00ffff33] shadow-[0_0_15px_rgba(0,255,255,0.1)]",
+        "flex h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-lg bg-background/80 backdrop-blur-xl border-[#00ffff33] shadow-[0_0_15px_rgba(0,255,255,0.1)]",
         isLoading && "animate-gradient-rotate"
       )}
     >
