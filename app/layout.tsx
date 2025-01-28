@@ -18,10 +18,10 @@ export const metadata: Metadata = {
   description: "Your personal assistant for knowledge and discovery.",
   icons: {
     icon: [
-      { url: "/favicon-32x32.ico", sizes: "32x32" },
-      { url: "/favicon-32x32.ico", sizes: "16x16" },
+      { url: "/avatar.png", sizes: "32x32" },
+      { url: "/avatar.png", sizes: "16x16" },
     ],
-    apple: [{ url: "/favicon-32x32.ico", sizes: "180x180" }],
+    apple: [{ url: "/avatar.png", sizes: "180x180" }],
   },
 };
 
