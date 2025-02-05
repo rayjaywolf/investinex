@@ -2,12 +2,12 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { NextResponse } from "next/server";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { MessagesPlaceholder } from "@langchain/core/prompts";
+import axios from "axios";
 
 const SAMARITAN_PROMPT = `You are Samaritan, a specialized cryptocurrency investment advisor. Here's your operational framework:
 
 1. **Initial Information Gathering** ❓:
-   - ALWAYS ask the user for the current price of any cryptocurrency they mention if not provided
-   - Format the question as: "What is the current price of [CRYPTO]?"
+   - Collect and analyze relevant data through web search
    - Wait for the price before providing any trading recommendations
 
 2. **Trade Research Protocol** 📊:
@@ -33,7 +33,28 @@ const chatPrompt = ChatPromptTemplate.fromMessages([
   ["human", "{input}"],
 ]);
 
-export async function POST(req: Request) {
+async function fetchSearchResults(query) {
+  const apiKey = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY;
+  const cx = process.env.GOOGLE_CSE_ID;
+  const url = "https://www.googleapis.com/customsearch/v1";
+
+  const params = {
+    q: query,
+    key: apiKey,
+    cx: cx,
+  };
+
+  try {
+    const response = await axios.get(url, { params });
+    console.log(response.data);
+    return response.data;
+  } catch (error) {
+    console.error("[SEARCH_ERROR]", error);
+    throw new Error("Failed to fetch search results");
+  }
+}
+
+export async function POST(req) {
   try {
     const { messages } = await req.json();
 
@@ -47,21 +68,29 @@ export async function POST(req: Request) {
     // Format the chat history
     const chatHistory = messages
       .slice(0, -1) // Exclude the last message as it will be the input
-      .filter((msg: [string, string]) => msg[0] !== "system")
-      .map((msg: [string, string]) => ({
+      .filter((msg) => msg[0] !== "system")
+      .map((msg) => ({
         role: msg[0],
         content: msg[1],
       }));
 
     const lastMessage = messages[messages.length - 1];
 
+    // Fetch search results based on the last message
+    const searchResults = await fetchSearchResults(lastMessage[1]);
+
+    // Extract relevant information from search results
+    const relevantInfo = searchResults.items
+      ? searchResults.items.map((item) => item.snippet).join(" ")
+      : "";
+
     // Create the chain
     const chain = chatPrompt.pipe(model);
 
-    // Invoke the chain
+    // Invoke the chain with the search results included
     const response = await chain.invoke({
       chat_history: chatHistory,
-      input: lastMessage[1],
+      input: `${lastMessage[1]} Based on the following information: ${relevantInfo}`,
     });
 
     return NextResponse.json({ content: response.content });
