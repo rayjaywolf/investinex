@@ -91,16 +91,13 @@ export function Chat() {
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
-      setTimeout(
-        () => {
-          setMessages((prev) =>
-            prev.map((msg, idx) =>
-              idx === prev.length - 1 ? { ...msg, isComplete: true } : msg
-            )
-          );
-        },
-        Math.ceil(data.content.length / 2) * 5 + 50
-      );
+      setTimeout(() => {
+        setMessages((prev) =>
+          prev.map((msg, idx) =>
+            idx === prev.length - 1 ? { ...msg, isComplete: true } : msg
+          )
+        );
+      }, Math.ceil(data.content.length / 2) * 5 + 50);
     } catch (error) {
       console.error("Error sending message:", error);
     } finally {
@@ -130,7 +127,8 @@ export function Chat() {
                   </p>
                   <p className="text-sm text-muted-foreground">
                     I can help you with short-term crypto trading
-                    recommendations. What would you like to know?
+                    recommendations (prefix the coin name with a $ to get
+                    accurate results). What would you like to know?
                   </p>
                 </div>
               </div>
