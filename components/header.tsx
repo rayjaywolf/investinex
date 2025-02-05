@@ -50,7 +50,7 @@ export function Header() {
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                        Q1 2024 - Launch
+                        Q1 2025 - Launch
                       </h3>
                       <ul className="text-muted-foreground space-y-2">
                         <li className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export function Header() {
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-xl font-semibold">
-                        Q2 2024 - Enhanced Analysis
+                        Q2 2025 - Enhanced Analysis
                       </h3>
                       <ul className="text-muted-foreground space-y-2">
                         <li className="flex items-center gap-2">
@@ -102,7 +102,7 @@ export function Header() {
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-xl font-semibold">
-                        Q3 2024 - Social Features
+                        Q3 2025 - Social Features
                       </h3>
                       <ul className="text-muted-foreground space-y-2">
                         <li className="flex items-center gap-2">
@@ -128,7 +128,7 @@ export function Header() {
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-xl font-semibold">
-                        Q4 2024 - Advanced Tools
+                        Q4 2025 - Advanced Tools
                       </h3>
                       <ul className="text-muted-foreground space-y-2">
                         <li className="flex items-center gap-2">
