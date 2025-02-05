@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { Github, Twitter, Map, CheckCircle2, CalendarClock } from "lucide-react";
+import {
+  Github,
+  Twitter,
+  Map,
+  CheckCircle2,
+  CalendarClock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -69,7 +75,9 @@ export function Header() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <h3 className="text-xl font-semibold">Q2 2024 - Enhanced Analysis</h3>
+                      <h3 className="text-xl font-semibold">
+                        Q2 2024 - Enhanced Analysis
+                      </h3>
                       <ul className="text-muted-foreground space-y-2">
                         <li className="flex items-center gap-2">
                           <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
@@ -93,7 +101,9 @@ export function Header() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <h3 className="text-xl font-semibold">Q3 2024 - Social Features</h3>
+                      <h3 className="text-xl font-semibold">
+                        Q3 2024 - Social Features
+                      </h3>
                       <ul className="text-muted-foreground space-y-2">
                         <li className="flex items-center gap-2">
                           <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
@@ -117,7 +127,9 @@ export function Header() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <h3 className="text-xl font-semibold">Q4 2024 - Advanced Tools</h3>
+                      <h3 className="text-xl font-semibold">
+                        Q4 2024 - Advanced Tools
+                      </h3>
                       <ul className="text-muted-foreground space-y-2">
                         <li className="flex items-center gap-2">
                           <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
@@ -147,7 +159,7 @@ export function Header() {
             <Github className="h-5 w-5" />
           </a>
           <a
-            href="https://twitter.com"
+            href="https://x.com/SamaritanAI_SOL"
             target="_blank"
             rel="noopener noreferrer"
             className="transition-colors hover:text-foreground/80 text-foreground/60"
