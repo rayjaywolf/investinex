@@ -14,7 +14,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Samaritan AI",
+  title: "Nexus AI",
   description: "Your personal assistant for knowledge and discovery.",
   icons: {
     icon: [
