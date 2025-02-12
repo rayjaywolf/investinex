@@ -123,7 +123,7 @@ export function Chat() {
                 </Avatar>
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-cyan-500">
-                    Welcome to Samaritan
+                    Welcome to Nexus
                   </p>
                   <p className="text-sm text-muted-foreground">
                     I can help you with short-term crypto trading
@@ -222,7 +222,7 @@ export function Chat() {
             <div className="flex items-start gap-3">
               <Avatar className="h-8 w-8 bg-cyan-500/10 text-cyan-500 ring-2 ring-cyan-500/20">
                 <AvatarImage src="/avatar.png" alt="Samaritan" />
-                <AvatarFallback>SAM</AvatarFallback>
+                <AvatarFallback>NEX</AvatarFallback>
               </Avatar>
               <div className="flex max-w-[80%] items-center gap-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 px-3 py-2 shadow-[0_0_10px_rgba(0,255,255,0.1)]">
                 <div className="flex space-x-2">

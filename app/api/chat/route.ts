@@ -5,7 +5,7 @@ import { MessagesPlaceholder } from "@langchain/core/prompts";
 import axios from "axios";
 
 // Main trading recommendation prompt.
-const SAMARITAN_PROMPT = `You are Samaritan, a specialized cryptocurrency investment advisor. Here's your operational framework:
+const SAMARITAN_PROMPT = `You are Nexus, a specialized cryptocurrency investment advisor. Here's your operational framework:
 
 1. **Initial Information Gathering** ❓:
    - Collect and analyze relevant data through web search.

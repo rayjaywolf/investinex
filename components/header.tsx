@@ -22,7 +22,7 @@ export function Header() {
       <div className="flex h-14 items-center justify-between px-8">
         <Link href="/" className="flex items-center space-x-2">
           <span className={`text-lg ${supercharge.className} text-white`}>
-            Samaritan
+            Nexus
           </span>
         </Link>
         <nav className="flex items-center space-x-4">

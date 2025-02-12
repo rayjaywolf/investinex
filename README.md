@@ -1,6 +1,6 @@
-# 🌟 Samaritan AI
+# 🌟 Nexus AI
 
-Samaritan AI is your specialized cryptocurrency investment advisor powered by advanced AI. 🤖 Engage in intelligent conversations and get insights into trading opportunities that can help you make informed decisions in the fast-paced world of cryptocurrency.
+Nexus AI is your specialized cryptocurrency investment advisor powered by advanced AI. 🤖 Engage in intelligent conversations and get insights into trading opportunities that can help you make informed decisions in the fast-paced world of cryptocurrency.
 
 ## 🚀 Features
 
@@ -10,7 +10,7 @@ Samaritan AI is your specialized cryptocurrency investment advisor powered by ad
 
 ## 🛠️ Getting Started
 
-To get started with Samaritan AI, you'll need to run the development server:
+To get started with Nexus AI, you'll need to run the development server:
 
 ```bash
 npm run dev

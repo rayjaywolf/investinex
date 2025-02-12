@@ -37,7 +37,7 @@ export default function ChatPage() {
           <Link href="/">
             <div className="space-y-1">
               <h2 className={`text-lg ${supercharge.className} text-white`}>
-                Samaritan
+                Nexus
               </h2>
             </div>
           </Link>
