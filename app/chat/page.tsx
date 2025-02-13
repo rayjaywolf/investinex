@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { supercharge } from "@/app/fonts";
+import { coolvetica } from "@/app/fonts";
 
 export default function ChatPage() {
   const [key, setKey] = useState(0);
@@ -36,7 +36,7 @@ export default function ChatPage() {
         <div className="h-14 px-8 flex items-center justify-between">
           <Link href="/">
             <div className="space-y-1">
-              <h2 className={`text-lg ${supercharge.className} text-white`}>
+              <h2 className={`text-lg ${coolvetica.className} text-white`}>
                 Investinex
               </h2>
             </div>
