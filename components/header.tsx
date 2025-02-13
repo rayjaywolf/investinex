@@ -159,7 +159,7 @@ export function Header() {
             <Github className="h-5 w-5" />
           </a>
           <a
-            href="https://x.com/SamaritanAI_SOL"
+            href="https://x.com/investinex"
             target="_blank"
             rel="noopener noreferrer"
             className="transition-colors hover:text-foreground/80 text-foreground/60"
