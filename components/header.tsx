@@ -14,14 +14,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { supercharge } from "@/app/fonts";
+import { supercharge, coolvetica } from "@/app/fonts";
 
 export function Header() {
   return (
     <header className="fixed top-0 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 items-center justify-between px-8">
         <Link href="/" className="flex items-center space-x-2">
-          <span className={`text-lg ${supercharge.className} text-white`}>
+          <span className={`text-lg ${coolvetica.className} text-white`}>
             Investinex
           </span>
         </Link>
