@@ -19,7 +19,7 @@ export default function Home() {
           <div className="relative flex flex-col items-center space-y-8 text-center">
             <div className="space-y-4">
               <h1 className="text-5xl font-bold tracking-tighter sm:text-6xl xl:text-7xl/none bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/90 to-secondary">
-                Investinex AI
+                Investinex
               </h1>
               <p className="mx-auto max-w-[700px] text-zinc-500 md:text-xl dark:text-zinc-400">
                 Your specialized cryptocurrency investment advisor powered by
