@@ -123,7 +123,7 @@ export function Chat() {
                 </Avatar>
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-cyan-500">
-                    Welcome to Nexus
+                    Welcome to Investinex
                   </p>
                   <p className="text-sm text-muted-foreground">
                     I can help you with short-term crypto trading
