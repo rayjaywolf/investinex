@@ -14,7 +14,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Investinex AI",
+  title: "Investinex",
   description: "Your personal assistant for knowledge and discovery.",
   icons: {
     icon: [
