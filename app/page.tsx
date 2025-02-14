@@ -1,13 +1,12 @@
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import {
-  ArrowRight,
   LineChart,
   Shield,
   Clock,
   CheckCircle2,
 } from "lucide-react";
 import { Header } from "@/components/header";
+import EligibilityCheck from "@/components/EligibilityCheck";
+import StartTradingButton from "@/components/StartTradingButton";
 
 export default function Home() {
   return (
@@ -51,13 +50,14 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="space-x-4">
-              <Link href="/chat">
-                <Button size="lg" className="px-8 group font-bold text-md">
-                  Start Trading
-                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Button>
-              </Link>
+            <div className="space-y-8">
+              <div className="space-x-4">
+                <StartTradingButton />
+              </div>
+
+              <div className="pt-8 border-t border-gray-800 w-full">
+                <EligibilityCheck />
+              </div>
             </div>
           </div>
         </div>

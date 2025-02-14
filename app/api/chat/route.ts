@@ -79,11 +79,56 @@ async function fetchSearchResults(query) {
   }
 }
 
+// New helper function to fetch price from CoinGecko
+async function fetchCoinGeckoPrice(coinId: string) {
+  try {
+    // First try to get the coin ID if a symbol was provided
+    const searchResponse = await axios.get(
+      `https://api.coingecko.com/api/v3/search?query=${coinId}`
+    );
+
+    const coinMatch = searchResponse.data.coins?.[0];
+    if (!coinMatch) {
+      return null;
+    }
+
+    // Get the current price using the coin ID
+    const priceResponse = await axios.get(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${coinMatch.id}&vs_currencies=usd&include_24hr_change=true`
+    );
+
+    if (priceResponse.data[coinMatch.id]) {
+      const data = priceResponse.data[coinMatch.id];
+      return {
+        name: coinMatch.name,
+        symbol: coinMatch.symbol.toUpperCase(),
+        price: data.usd,
+        change24h: data.usd_24h_change,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("[COINGECKO_ERROR]", error);
+    return null;
+  }
+}
+
 // Helper function to extract the first URL from a text string.
 function extractURL(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/;
   const match = text.match(urlRegex);
   return match ? match[0] : null;
+}
+
+// New helper function to detect and parse CoinGecko URLs
+function extractCoinGeckoId(url: string): string | null {
+  try {
+    const coinGeckoRegex = /coingecko\.com\/en\/coins\/([a-zA-Z0-9-]+)/;
+    const match = url.match(coinGeckoRegex);
+    return match ? match[1] : null;
+  } catch (error) {
+    return null;
+  }
 }
 
 export async function POST(req) {
@@ -112,40 +157,68 @@ export async function POST(req) {
     // STEP 1: Check if a link is present in the user's query.
     const link = extractURL(lastMessage[1]);
     if (link) {
-      // Fetch the page content.
-      const linkResponse = await axios.get(link);
-      let pageText = linkResponse.data;
-      // Strip HTML tags to extract plain text.
-      pageText = pageText.replace(/<[^>]*>/g, " ");
+      // Check if it's a CoinGecko link
+      const coinGeckoId = extractCoinGeckoId(link);
 
-      // Use a special extraction prompt to pull coin and price info from the page text.
-      const linkExtractPrompt = ChatPromptTemplate.fromMessages([
-        ["system", LINK_EXTRACTION_PROMPT],
-        ["human", "{input}"],
-      ]);
-      const linkExtractChain = linkExtractPrompt.pipe(model);
-      const extractionFromLink = await linkExtractChain.invoke({
-        input: pageText,
-      });
-      const extractedInfo = extractionFromLink.content.trim();
+      if (coinGeckoId) {
+        // Direct CoinGecko API call
+        const coinData = await fetchCoinGeckoPrice(coinGeckoId);
+        if (coinData) {
+          finalInput = `${lastMessage[1]}\n\nCurrent market data for ${
+            coinData.name
+          } (${coinData.symbol}):
+- Price: $${coinData.price.toFixed(2)}
+- 24h Change: ${coinData.change24h.toFixed(2)}%`;
+        } else {
+          return NextResponse.json({
+            content:
+              "Unable to fetch data for this cryptocurrency from CoinGecko.",
+          });
+        }
+      } else {
+        // Handle non-CoinGecko links as before
+        try {
+          const linkResponse = await axios.get(link);
+          let pageText = linkResponse.data;
+          // Strip HTML tags to extract plain text.
+          pageText = pageText.replace(/<[^>]*>/g, " ");
 
-      // Expecting a format like: "Coin: <coin_name>, Price: <current_price>"
-      const coinMatch = extractedInfo.match(/Coin:\s*([^,]+)/i);
-      const priceMatch = extractedInfo.match(/Price:\s*(.+)/i);
-      coin = coinMatch ? coinMatch[1].trim() : "";
-      priceInfo = priceMatch ? priceMatch[1].trim() : "";
+          // Use a special extraction prompt to pull coin and price info from the page text.
+          const linkExtractPrompt = ChatPromptTemplate.fromMessages([
+            ["system", LINK_EXTRACTION_PROMPT],
+            ["human", "{input}"],
+          ]);
+          const linkExtractChain = linkExtractPrompt.pipe(model);
+          const extractionFromLink = await linkExtractChain.invoke({
+            input: pageText,
+          });
+          const extractedInfo = extractionFromLink.content.trim();
 
-      if (!coin) {
-        return NextResponse.json({
-          content:
-            "I couldn't detect a valid cryptocurrency in the provided link. Please ensure the link contains cryptocurrency information.",
-        });
+          // Expecting a format like: "Coin: <coin_name>, Price: <current_price>"
+          const coinMatch = extractedInfo.match(/Coin:\s*([^,]+)/i);
+          const priceMatch = extractedInfo.match(/Price:\s*(.+)/i);
+          coin = coinMatch ? coinMatch[1].trim() : "";
+          priceInfo = priceMatch ? priceMatch[1].trim() : "";
+
+          if (!coin) {
+            return NextResponse.json({
+              content:
+                "I couldn't detect a valid cryptocurrency in the provided link. Please ensure the link contains cryptocurrency information.",
+            });
+          }
+
+          // Append the extracted details to the original query.
+          finalInput = `${lastMessage[1]}\n\nBased on the information extracted from the link: Coin: ${coin}, Price: ${priceInfo}.`;
+        } catch (error) {
+          console.error("[LINK_FETCH_ERROR]", error);
+          return NextResponse.json({
+            content:
+              "Unable to fetch data from the provided link. Please ensure the link is accessible.",
+          });
+        }
       }
-
-      // Append the extracted details to the original query.
-      finalInput = `${lastMessage[1]}\n\nBased on the information extracted from the link: Coin: ${coin}, Price: ${priceInfo}.`;
     } else {
-      // STEP 2: If no link is found, extract crypto info using the '$' prefix.
+      // Extract crypto info using the '$' prefix.
       const extractChain = extractPrompt.pipe(model);
       const extractionResponse = await extractChain.invoke({
         input: lastMessage[1],
@@ -153,7 +226,6 @@ export async function POST(req) {
       let cryptoSymbols = extractionResponse.content.trim();
 
       if (cryptoSymbols.toLowerCase() !== "none" && cryptoSymbols !== "") {
-        // Pick the first symbol if multiple are returned.
         const symbolsArray = cryptoSymbols.split(/[\s,]+/);
         coin = symbolsArray[0];
         if (coin.startsWith("$")) {
@@ -161,22 +233,32 @@ export async function POST(req) {
         }
       }
 
-      // If still no valid coin, ask the user to use the dollar prefix.
       if (!coin) {
         return NextResponse.json({
           content:
-            "I couldn't detect a valid cryptocurrency in your query. Please prefix the cryptocurrency name with a '$' sign (e.g., '$bitcoin') and try again.",
+            "I couldn't detect a valid cryptocurrency in your query. Please prefix the cryptocurrency name with a '$' sign (e.g., '$bitcoin') or enter a coingecko link and try again.",
         });
       }
 
-      // STEP 3: For non-link queries, search for the coin’s current price.
-      const cryptoQuery = `${coin} price cryptocurrency`;
-      const searchResults = await fetchSearchResults(cryptoQuery);
-      const relevantInfo = searchResults.items
-        ? searchResults.items.map((item) => item.snippet).join(" ")
-        : "No price information found.";
+      // Try CoinGecko first
+      const coinData = await fetchCoinGeckoPrice(coin);
 
-      finalInput = `${lastMessage[1]}\n\nBased on the following current price information for ${coin}: ${relevantInfo}`;
+      if (coinData) {
+        finalInput = `${lastMessage[1]}\n\nCurrent market data for ${
+          coinData.name
+        } (${coinData.symbol}):
+- Price: $${coinData.price.toFixed(2)}
+- 24h Change: ${coinData.change24h.toFixed(2)}%`;
+      } else {
+        // Fall back to Google Custom Search if CoinGecko doesn't have the coin
+        const cryptoQuery = `${coin} price cryptocurrency`;
+        const searchResults = await fetchSearchResults(cryptoQuery);
+        const relevantInfo = searchResults.items
+          ? searchResults.items.map((item) => item.snippet).join(" ")
+          : "No price information found.";
+
+        finalInput = `${lastMessage[1]}\n\nBased on the following current price information for ${coin}: ${relevantInfo}`;
+      }
     }
 
     // STEP 4: Generate the final trading recommendation.

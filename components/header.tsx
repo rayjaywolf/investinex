@@ -151,7 +151,7 @@ export function Header() {
             </DialogContent>
           </Dialog>
           <a
-            href="https://github.com/rayjaywolf/samaritan"
+            href="https://github.com/rayjaywolf/investinex"
             target="_blank"
             rel="noopener noreferrer"
             className="transition-colors hover:text-foreground/80 text-foreground/60"

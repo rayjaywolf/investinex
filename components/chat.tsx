@@ -13,12 +13,72 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import { cn } from "@/lib/utils";
+import type { Components } from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   isComplete?: boolean;
+  tradingData?: {
+    cryptocurrency: string;
+    currentPrice: string;
+    leverage: string;
+    stopLoss: string;
+    takeProfit: string;
+    duration: string;
+    risk: string;
+  };
 }
+
+interface CodeProps {
+  inline?: boolean;
+  children: React.ReactNode;
+}
+
+const parseTradingRecommendation = (content: string) => {
+  try {
+    // Look for common patterns in the trading recommendation
+    const cryptoMatch = content.match(/(?:for|analyzing)\s+(\$?\w+|\w+\/\w+)/i);
+    const priceMatch = content.match(
+      /(?:price|currently trading at|at)\s*(?:is|:)?\s*([\d,.]+)/i
+    );
+    const leverageMatch = content.match(
+      /(?:leverage|recommended leverage)\s*(?:of|:)?\s*([\dx]+)/i
+    );
+    const stopLossMatch = content.match(
+      /(?:stop loss|stop-loss)\s*(?:at|:)?\s*([\d,.]+)/i
+    );
+    const takeProfitMatch = content.match(
+      /(?:take profit|take-profit|target)\s*(?:at|:)?\s*([\d,.]+)/i
+    );
+    const durationMatch = content.match(
+      /(?:duration|timeframe|time frame)\s*(?:of|:)?\s*([^.]+)/i
+    );
+    const riskMatch = content.match(
+      /(?:risk|risk level)\s*(?:is|:)?\s*(low|medium|high)/i
+    );
+
+    if (cryptoMatch && priceMatch) {
+      return {
+        cryptocurrency: cryptoMatch[1].replace("$", "").toUpperCase(),
+        currentPrice: `$${priceMatch[1]}`,
+        leverage: leverageMatch ? leverageMatch[1] : "Not specified",
+        stopLoss: stopLossMatch ? `$${stopLossMatch[1]}` : "Not specified",
+        takeProfit: takeProfitMatch
+          ? `$${takeProfitMatch[1]}`
+          : "Not specified",
+        duration: durationMatch ? durationMatch[1].trim() : "Not specified",
+        risk: riskMatch
+          ? riskMatch[1].charAt(0).toUpperCase() + riskMatch[1].slice(1)
+          : "Medium",
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error parsing trading recommendation:", error);
+    return null;
+  }
+};
 
 export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -84,10 +144,13 @@ export function Chat() {
       if (!response.ok) throw new Error("Failed to send message");
 
       const data = await response.json();
+      const tradingData = parseTradingRecommendation(data.content) || undefined;
+
       const assistantMessage: Message = {
         role: "assistant",
         content: data.content,
         isComplete: false,
+        tradingData,
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
@@ -127,8 +190,9 @@ export function Chat() {
                   </p>
                   <p className="text-sm text-muted-foreground">
                     I can help you with short-term crypto trading
-                    recommendations (prefix the coin name with a $ to get
-                    accurate results). What would you like to know?
+                    recommendations (prefix the coin name with a $ or enter a
+                    coingecko link to get accurate results). What would you like
+                    to know?
                   </p>
                 </div>
               </div>
@@ -175,39 +239,62 @@ export function Chat() {
                     )}
                   >
                     {message.role === "assistant" ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:whitespace-pre-wrap [&>p]:mb-4 [&>p:last-child]:mb-0">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          rehypePlugins={[rehypeRaw, rehypeSanitize]}
-                          components={{
-                            p: ({ children }) => (
-                              <p className="whitespace-pre-wrap mb-4 last:mb-0">
-                                {children}
-                              </p>
-                            ),
-                            pre: ({ children }) => (
-                              <pre className="overflow-auto p-2 bg-background/50 rounded-md border border-cyan-500/20 mb-4 last:mb-0">
-                                {children}
-                              </pre>
-                            ),
-                            code: ({ inline, children }) =>
-                              inline ? (
-                                <code className="bg-background/50 px-1 py-0.5 rounded-md border border-cyan-500/20">
+                      <>
+                        <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:whitespace-pre-wrap [&>p]:mb-4 [&>p:last-child]:mb-0">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                            components={{
+                              p: ({
+                                children,
+                              }: {
+                                children: React.ReactNode;
+                              }) => (
+                                <p className="whitespace-pre-wrap mb-4 last:mb-0">
                                   {children}
-                                </code>
-                              ) : (
-                                <code>{children}</code>
+                                </p>
                               ),
-                          }}
-                        >
-                          {message.isComplete ? message.content : displayedText}
-                        </ReactMarkdown>
-                        {!message.isComplete && (
-                          <div className="mt-1 h-4 w-4">
-                            <Loader2 className="h-4 w-4 animate-spin text-cyan-500" />
+                              pre: ({
+                                children,
+                              }: {
+                                children: React.ReactNode;
+                              }) => (
+                                <pre className="overflow-auto p-2 bg-background/50 rounded-md border border-cyan-500/20 mb-4 last:mb-0">
+                                  {children}
+                                </pre>
+                              ),
+                              code: ({
+                                inline,
+                                children,
+                              }: {
+                                inline?: boolean;
+                                children: React.ReactNode;
+                              }) =>
+                                inline ? (
+                                  <code className="bg-background/50 px-1 py-0.5 rounded-md border border-cyan-500/20">
+                                    {children}
+                                  </code>
+                                ) : (
+                                  <code>{children}</code>
+                                ),
+                            }}
+                          >
+                            {message.isComplete
+                              ? message.content
+                              : displayedText}
+                          </ReactMarkdown>
+                          {!message.isComplete && (
+                            <div className="mt-1 h-4 w-4">
+                              <Loader2 className="h-4 w-4 animate-spin text-cyan-500" />
+                            </div>
+                          )}
+                        </div>
+                        {message.tradingData && message.isComplete && (
+                          <div className="mt-4">
+                            <TradingRecommendation data={message.tradingData} />
                           </div>
                         )}
-                      </div>
+                      </>
                     ) : (
                       <p className="whitespace-pre-wrap text-sm">
                         {message.content}
