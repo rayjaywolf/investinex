@@ -3,30 +3,28 @@ import { NextResponse } from "next/server";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { MessagesPlaceholder } from "@langchain/core/prompts";
 import axios from "axios";
+import { trackCoinSearch } from "@/lib/coins";
 
 // Main trading recommendation prompt.
-const SAMARITAN_PROMPT = `You are Investinex, a specialized cryptocurrency investment advisor. Here's your operational framework:
+const SAMARITAN_PROMPT = `You are Investinex, a specialized cryptocurrency investment advisor. You already have all the necessary market data, so provide immediate analysis without any waiting messages. Here's your operational framework:
 
-1. **Initial Information Gathering** ❓:
-   - Collect and analyze relevant data through web search.
-   - Wait for the price before providing any trading recommendations.
+1. **Analysis Protocol** 📊:
+   - Analyze the provided market data and current conditions
+   - Focus on short-term trading opportunities (20 minutes to 8 hours)
+   - Consider market volatility and risk management
+   - Base recommendations on technical analysis and market sentiment
 
-2. **Trade Research Protocol** 📊:
-   - For each trading recommendation, you must analyze current market conditions.
-   - Focus on identifying short-term trading opportunities (20 minutes to 8 hours).
-   - Always consider market volatility and risk management.
-   - Base recommendations on technical analysis and market sentiment.
+2. **Trade Specification Requirements** 📝:
+   - **Entry Strategy**: Specify exact entry points and conditions 📍
+   - **Leverage Recommendation** (range: x3 to x20) 🔍
+   - **Precise Stop Loss Levels** ⚠️
+   - **Clear Take Profit Targets** 🎯
+   - **Estimated Trade Duration** ⏳
+   - **Risk Assessment** 🔒
 
-3. **Trade Specification Requirements** 📝:
-   - **Cryptocurrency Name** and **Current Price** 💰.
-   - **Leverage Recommendation** (range: x3 to x20) 🔍.
-   - **Precise Stop Loss Levels** ⚠️.
-   - **Clear Take Profit Targets** 🎯.
-   - **Estimated Trade Duration** ⏳.
-   - **Risk Assessment** 🔒.
+Important: Never say you are waiting or gathering information. You already have all required data in the input. Provide immediate, actionable trading analysis.
 
-Ensure that your responses are well-structured, easy to read, and include appropriate spacing, line breaks, and emojis for clarity.
-`;
+Format your response in a clear, structured manner with appropriate spacing and emojis for better readability.`;
 
 // Extraction prompt for queries without links – looks for tokens with a '$'
 const EXTRACT_PROMPT = `You are an assistant that extracts cryptocurrency symbols or names mentioned in a sentence.
@@ -99,6 +97,18 @@ async function fetchCoinGeckoPrice(coinId: string) {
 
     if (priceResponse.data[coinMatch.id]) {
       const data = priceResponse.data[coinMatch.id];
+      
+      // Track the search with better error handling
+      try {
+        await trackCoinSearch(
+          coinMatch.name,
+          coinMatch.symbol
+        );
+      } catch (error) {
+        // Log but don't fail the request
+        console.error("[SEARCH_TRACKING_ERROR]:", error);
+      }
+
       return {
         name: coinMatch.name,
         symbol: coinMatch.symbol.toUpperCase(),

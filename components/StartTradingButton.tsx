@@ -1,25 +1,20 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 export default function StartTradingButton() {
-  const router = useRouter();
-
-  const handleClick = () => {
-    const isEligible = localStorage.getItem("isEligible") === "true";
-    router.push(isEligible ? "/chat" : "/not-eligible");
-  };
-
   return (
-    <Button
-      size="lg"
-      className="px-8 group font-bold text-md"
-      onClick={handleClick}
-    >
-      Start Trading
-      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-    </Button>
+    <Link href="/chat">
+      <Button 
+        variant="gradientWhite" 
+        size="lg" 
+        className="rounded-full font-medium text-base tracking-wide bg-gradient-to-t from-zinc-100 to-white text-black/80"
+      >
+        Start Trading
+        <ArrowRight className="w-4 h-4" />
+      </Button>
+    </Link>
   );
-} 
+}

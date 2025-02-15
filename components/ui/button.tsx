@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -19,6 +19,10 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        gradient: "text-white bg-gradient-to-t from-green-600 to-green-400 shadow-[0_4px_20px_-2px_rgba(20,167,62,0.6)] hover:shadow-[0_4px_25px_0px_rgba(20,167,62,0.7)] active:shadow-[0_4px_15px_-2px_rgba(20,167,62,0.5)] border-none",
+        gradientPurple: "text-white bg-gradient-to-t from-purple-600 to-purple-400 shadow-[0_4px_20px_-2px_rgba(147,51,234,0.6)] hover:shadow-[0_4px_25px_0px_rgba(147,51,234,0.7)] active:shadow-[0_4px_15px_-2px_rgba(147,51,234,0.5)] border-none",
+        gradientRed: "text-white bg-gradient-to-t from-red-600 to-red-400 shadow-[0_4px_20px_-2px_rgba(220,38,38,0.6)] hover:shadow-[0_4px_25px_0px_rgba(220,38,38,0.7)] active:shadow-[0_4px_15px_-2px_rgba(220,38,38,0.5)] border-none",
+        gradientWhite: "text-black bg-gradient-to-t from-gray-50 to-white shadow-[0_4px_20px_-2px_rgba(255,255,255,0.3)] hover:shadow-[0_4px_25px_0px_rgba(255,255,255,0.4)] active:shadow-[0_4px_15px_-2px_rgba(255,255,255,0.25)] border-none",
       },
       size: {
         default: "h-9 px-4 py-2",

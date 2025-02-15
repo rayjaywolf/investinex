@@ -26,7 +26,9 @@ const getProvider = (): PhantomProvider | undefined => {
 };
 
 export default function ConnectWalletButton() {
-  const [provider, setProvider] = useState<PhantomProvider | undefined>(undefined);
+  const [provider, setProvider] = useState<PhantomProvider | undefined>(
+    undefined
+  );
   const [connected, setConnected] = useState(false);
   const [publicKey, setPublicKey] = useState<string>("");
   const [isChecking, setIsChecking] = useState(false);
@@ -139,10 +141,12 @@ export default function ConnectWalletButton() {
     return (
       <Button
         onClick={handleConnectWallet}
-        className="bg-purple-600 hover:bg-purple-700"
+        variant="gradientRed"
+        size="lg"
+        className="w-full rounded-full font-medium text-base tracking-wide"
       >
-        <Wallet className="mr-2 h-4 w-4" />
-        Install Phantom
+        <Wallet className="w-4 h-4" />
+        Connect Wallet
       </Button>
     );
   }
@@ -151,12 +155,13 @@ export default function ConnectWalletButton() {
     return (
       <Button
         onClick={handleDisconnectWallet}
-        variant="outline"
-        className="border-purple-500 text-purple-500 hover:bg-purple-500/10"
+        variant="gradientPurple"
+        size="lg"
+        className="w-full rounded-full font-medium text-base tracking-wide"
         disabled={isChecking}
       >
         <Wallet className="mr-2 h-4 w-4" />
-        {isChecking ? "Checking..." : `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`}
+        {isChecking ? "Checking..." : "Connected"}
       </Button>
     );
   }
@@ -164,10 +169,12 @@ export default function ConnectWalletButton() {
   return (
     <Button
       onClick={handleConnectWallet}
-      className="bg-purple-600 hover:bg-purple-700"
+      variant="gradientRed"
+      size="lg"
+      className="w-full rounded-full font-medium text-base tracking-wide"
     >
-      <Wallet className="mr-2 h-4 w-4" />
+      <Wallet className="w-4 h-4" />
       Connect Wallet
     </Button>
   );
-} 
+}
