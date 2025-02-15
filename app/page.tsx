@@ -7,6 +7,7 @@ import {
 import { Header } from "@/components/header";
 import EligibilityCheck from "@/components/EligibilityCheck";
 import StartTradingButton from "@/components/StartTradingButton";
+import ConnectWalletButton from "@/components/ConnectWalletButton";
 
 export default function Home() {
   return (
@@ -51,8 +52,9 @@ export default function Home() {
             </div>
 
             <div className="space-y-8">
-              <div className="space-x-4">
+              <div className="space-x-4 flex items-center">
                 <StartTradingButton />
+                <ConnectWalletButton />
               </div>
 
               <div className="pt-8 border-t border-gray-800 w-full">

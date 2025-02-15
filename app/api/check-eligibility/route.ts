@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 const GMGN_API_URL = "https://gmgn.ai/defi/router/v1/sol/tx/get_swap_route";
 const TOKEN_ADDRESS = "CNK4foXBWtyvNDyh5dk5DsNjsNouiFzdaKD4kHJdpump";
 const WSOL_ADDRESS = "So11111111111111111111111111111111111111112";
+const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
+
+
+const TEST_WALLETS = [
+  "EAqsoqrDLXxBX5P1LNozeBeyRWMQn1hVYrAVUBCXrgJ3",
+];
 
 export async function POST(req: Request) {
     try {
@@ -15,6 +21,23 @@ export async function POST(req: Request) {
             );
         }
 
+        // In development, you can force eligibility for testing
+        if (IS_DEVELOPMENT) {
+            return NextResponse.json({
+                isEligible: true,
+                message: "Congratulations! You are eligible. (Development Mode)",
+            });
+        }
+
+        // For test wallets in production
+        if (TEST_WALLETS.includes(walletAddress)) {
+            return NextResponse.json({
+                isEligible: true,
+                message: "Congratulations! You are eligible. (Test Wallet)",
+            });
+        }
+
+        // Continue with the real API check for non-test wallets
         const response = await fetch(
             `${GMGN_API_URL}?` + new URLSearchParams({
                 token_in_address: TOKEN_ADDRESS,
