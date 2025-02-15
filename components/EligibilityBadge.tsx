@@ -10,5 +10,5 @@ export default function EligibilityBadge() {
       <span className="font-medium">INVESTINEX</span>
     </div>
   </div>
-  );
+  );  
 } 
