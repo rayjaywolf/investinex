@@ -6,7 +6,7 @@ Investinex AI is your dedicated cryptocurrency investment advisor powered by adv
 
 - **Real-time Market Analysis**: Get timely insights on market trends and trading opportunities.
 - **Stop Loss and Take Profit Recommendations**: Protect your investments with precise guidance.
-- **Optimized for Short-term Trading**: Ideal for trades spanning 20 minutes to 8 hours
+- **Optimized for Short-term Trading**: Ideal for trades spanning 20 minutes to 8 hours.
 
 ## License
 
