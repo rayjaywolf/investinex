@@ -29,9 +29,35 @@ export default function EligibilityCheck() {
     // Custom event for direct updates
     window.addEventListener("walletStatusChange", handleStorageChange);
 
+    // Add this useEffect for route protection
+    const validateAccess = () => {
+      const isEligible = localStorage.getItem("isEligible") === "true";
+      const currentPath = window.location.pathname;
+      
+      if (currentPath.startsWith("/chat") && !isEligible) {
+        window.location.href = "/";
+      }
+    };
+
+    // Initial check
+    validateAccess();
+    
+    // Create enhanced handler
+    const protectedRouteHandler = () => {
+      validateAccess();
+      const isEligible = localStorage.getItem("isEligible") === "true";
+      const walletAddress = localStorage.getItem("walletAddress");
+      setStatus({ isEligible, walletAddress });
+    };
+
+    window.addEventListener("storage", protectedRouteHandler);
+    window.addEventListener("walletStatusChange", protectedRouteHandler);
+
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("walletStatusChange", handleStorageChange);
+      window.removeEventListener("storage", protectedRouteHandler);
+      window.removeEventListener("walletStatusChange", protectedRouteHandler);
     };
   }, []);
 

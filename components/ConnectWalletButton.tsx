@@ -45,7 +45,9 @@ export default function ConnectWalletButton() {
       });
 
       const data = await response.json();
-      localStorage.setItem("isEligible", String(data.isEligible));
+      
+      const eligibilityStatus = Boolean(data.isEligible);
+      localStorage.setItem("isEligible", eligibilityStatus.toString());
       localStorage.setItem("walletAddress", walletAddress);
       localStorage.setItem("phantomConnected", "true");
 
@@ -54,10 +56,10 @@ export default function ConnectWalletButton() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ isEligible: data.isEligible }),
+        body: JSON.stringify({ isEligible: eligibilityStatus }),
       });
 
-      return data.isEligible;
+      return eligibilityStatus;
     } catch (error) {
       console.error("Error checking eligibility:", error);
       return false;
@@ -97,9 +99,22 @@ export default function ConnectWalletButton() {
       provider.on("disconnect", () => {
         setConnected(false);
         setPublicKey("");
+        
+        // Clear all local storage
         localStorage.removeItem("isEligible");
         localStorage.removeItem("walletAddress");
         localStorage.removeItem("phantomConnected");
+
+        // Invalidate server-side cookie
+        fetch("/api/set-eligibility", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ isEligible: false }),
+        }).catch(error => 
+          console.error("Cookie cleanup failed:", error)
+        );
       });
 
       // Initialize wallet connection
@@ -115,12 +130,78 @@ export default function ConnectWalletButton() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleAccountsChanged = async () => {
+      try {
+        if (!provider?.publicKey) {
+          handleDisconnectWallet();
+          return;
+        }
+
+        const newAddress = provider.publicKey.toString();
+        setPublicKey(newAddress);
+        
+        // Immediately clear old status while checking
+        localStorage.removeItem("isEligible");
+        window.dispatchEvent(new Event("walletStatusChange"));
+        
+        const isEligible = await checkEligibility(newAddress);
+        
+        if (!isEligible) {
+          // Force immediate cookie invalidation
+          await fetch("/api/set-eligibility", {
+            method: "POST",
+            body: JSON.stringify({ isEligible: false }),
+          });
+        }
+        
+        // Update all listeners
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new CustomEvent("walletStatusChange", {
+          detail: { forceRefresh: true }
+        }));
+
+      } catch (error) {
+        console.error("Account change error:", error);
+        handleDisconnectWallet();
+      }
+    };
+
+    if (provider) {
+      provider.on("accountChanged", handleAccountsChanged);
+    }
+
+    return () => {
+      if (provider) {
+        provider.off("accountChanged", handleAccountsChanged);
+      }
+    };
+  }, [provider]);
+
   const handleConnectWallet = async () => {
     try {
-      if (provider) {
-        await provider.connect();
-      } else {
-        window.open("https://phantom.app/", "_blank");
+      const provider = getProvider();
+      if (!provider) return;
+
+      await provider.connect();
+      const newAddress = provider.publicKey?.toString() || "";
+      setPublicKey(newAddress);
+      setConnected(true);
+      
+      // Immediately check eligibility for new wallet
+      const isEligible = await checkEligibility(newAddress);
+      
+      // Force UI updates
+      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("walletStatusChange"));
+
+      if (!isEligible) {
+        // Clear auth if switched to ineligible wallet
+        localStorage.removeItem("isEligible");
+        await fetch("/api/set-eligibility", {
+          method: "POST",
+          body: JSON.stringify({ isEligible: false }),
+        });
       }
     } catch (error) {
       console.error("Error connecting to wallet:", error);

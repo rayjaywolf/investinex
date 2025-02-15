@@ -18,10 +18,13 @@ import { coolvetica } from "@/app/fonts";
 import { useSearchParams } from 'next/navigation';
 import { prisma } from "@/lib/db";
 import { getCoinGeckoData } from "@/lib/coins";
+import DOMPurify from 'isomorphic-dompurify';
+import parse from 'html-react-parser';
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  rawContent?: string;
   isComplete?: boolean;
   tradingData?: {
     cryptocurrency: string;
@@ -116,18 +119,29 @@ function QuickAccessCoins({ onSelect }: { onSelect: (coin: string) => void }) {
   );
 }
 
+const MessageContent = ({ content }: { content: string }) => {
+  // Remove any markdown code block markers and HTML tags that might be in the text
+  const cleanContent = content.replace(/```html\n|```\n|```/g, '');
+  
+  // Sanitize and parse the HTML
+  const sanitizedContent = DOMPurify.sanitize(cleanContent, {
+    ADD_TAGS: ['div', 'h1', 'h2', 'h3', 'p', 'ul', 'li', 'strong', 'em', 'span'],
+    ADD_ATTR: ['class'],
+  });
+
+  return (
+    <div className="message-content">
+      {parse(sanitizedContent)}
+    </div>
+  );
+};
+
 export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastMessage = messages[messages.length - 1];
-  const { displayedText, isTyping } = useTypewriter(
-    lastMessage?.role === "assistant" && !lastMessage.isComplete
-      ? lastMessage.content
-      : "",
-    5
-  );
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -153,13 +167,7 @@ export function Chat() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, displayedText]);
-
-  useEffect(() => {
-    if (isLoading) {
-      scrollToBottom();
-    }
-  }, [isLoading]);
+  }, [messages]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -185,7 +193,7 @@ export function Chat() {
         body: JSON.stringify({
           messages: [
             ...messages.map((msg) => [msg.role, msg.content]),
-            ["human", messageWithContext], // Send the context along with the current message
+            ["human", messageWithContext],
           ],
         }),
       });
@@ -194,26 +202,22 @@ export function Chat() {
 
       const data = await response.json();
       
-      // Try to parse trading data from both the current message and previous context
-      const tradingData = parseTradingRecommendation(messageWithContext + '\n' + data.content) || 
-                         parseTradingRecommendation(data.content) ||
+      const tradingData = parseTradingRecommendation(messageWithContext + '\n' + data.rawContent) || 
+                         parseTradingRecommendation(data.rawContent) ||
                          undefined;
 
+      // Set the message as complete immediately
       const assistantMessage: Message = {
         role: "assistant",
         content: data.content,
-        isComplete: false,
+        rawContent: data.rawContent,
+        isComplete: true, // Changed from false to true
         tradingData,
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
-      setTimeout(() => {
-        setMessages((prev) =>
-          prev.map((msg, idx) =>
-            idx === prev.length - 1 ? { ...msg, isComplete: true } : msg
-          )
-        );
-      }, Math.ceil(data.content.length / 2) * 5 + 50);
+      // Remove the setTimeout since we don't need the typewriter effect
+      // The message is already complete
     } catch (error) {
       console.error("Error sending message:", error);
     } finally {
@@ -223,6 +227,89 @@ export function Chat() {
 
   const handleQuickCoinSelect = (coinName: string) => {
     setInput(`give me analysis on $${coinName}`);
+  };
+
+  const MarkdownComponents: Components = {
+    // Override div rendering
+    div: ({ className, children, ...props }) => (
+      <div className={cn(className)} {...props}>
+        {children}
+      </div>
+    ),
+    // Override heading rendering
+    h1: ({ children }) => (
+      <h1 className="text-xl font-bold text-blue-500 mb-4">
+        {children}
+      </h1>
+    ),
+    h2: ({ children }) => (
+      <h2 className="text-lg font-semibold text-blue-400 mb-3">
+        {children}
+      </h2>
+    ),
+    h3: ({ children }) => (
+      <h3 className="text-base font-medium text-blue-400 mb-2">
+        {children}
+      </h3>
+    ),
+    // Override paragraph rendering
+    p: ({ children }) => (
+      <p className="text-base text-gray-200 mb-2">
+        {children}
+      </p>
+    ),
+    // Override list rendering
+    ul: ({ children }) => (
+      <ul className="space-y-2 mb-4">
+        {children}
+      </ul>
+    ),
+    li: ({ children }) => (
+      <li className="flex items-start gap-2">
+        <span className="text-blue-400 mt-1">•</span>
+        <span>{children}</span>
+      </li>
+    ),
+    // Override strong/bold rendering
+    strong: ({ children }) => (
+      <strong className="font-semibold text-blue-400">
+        {children}
+      </strong>
+    ),
+    // Override emphasis/italic rendering
+    em: ({ children }) => (
+      <em className="text-gray-300 italic">
+        {children}
+      </em>
+    ),
+    // Add support for custom containers
+    section: ({ className, children, ...props }) => (
+      <section 
+        className={cn(
+          "bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4",
+          className
+        )} 
+        {...props}
+      >
+        {children}
+      </section>
+    ),
+  };
+
+  // Add this configuration for rehypeSanitize
+  const sanitizeOptions = {
+    allowedTags: ['div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'ul', 'li', 'strong', 'em', 'section'],
+    allowedAttributes: {
+      div: ['class'],
+      span: ['class'],
+      section: ['class'],
+      h1: ['class'],
+      h2: ['class'],
+      h3: ['class'],
+      p: ['class'],
+      ul: ['class'],
+      li: ['class']
+    }
   };
 
   return (
@@ -336,78 +423,7 @@ export function Chat() {
                     >
                       {message.role === "assistant" ? (
                         <>
-                          <div className="prose prose-invert max-w-none">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              rehypePlugins={[rehypeRaw, rehypeSanitize]}
-                              components={{
-                                p: ({
-                                  children,
-                                }: {
-                                  children: React.ReactNode;
-                                }) => (
-                                  <p className="whitespace-pre-wrap mb-4 last:mb-0 text-base leading-relaxed">
-                                    {children}
-                                  </p>
-                                ),
-                                strong: ({
-                                  children,
-                                }: {
-                                  children: React.ReactNode;
-                                }) => (
-                                  <strong className="font-semibold text-blue-400">
-                                    {children}
-                                  </strong>
-                                ),
-                                em: ({
-                                  children,
-                                }: {
-                                  children: React.ReactNode;
-                                }) => (
-                                  <em className="text-purple-400 not-italic">
-                                    {children}
-                                  </em>
-                                ),
-                                pre: ({
-                                  children,
-                                }: {
-                                  children: React.ReactNode;
-                                }) => (
-                                  <pre className="overflow-auto p-3 bg-background/50 rounded-md border border-cyan-500/20 mb-4 last:mb-0">
-                                    {children}
-                                  </pre>
-                                ),
-                                code: ({ inline, children }: CodeProps) => {
-                                  if (inline) {
-                                    return (
-                                      <code className="px-1.5 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 font-mono text-sm">
-                                        {children}
-                                      </code>
-                                    );
-                                  }
-                                  return <code>{children}</code>;
-                                },
-                                ul: ({
-                                  children,
-                                }: {
-                                  children: React.ReactNode;
-                                }) => (
-                                  <ul className="list-disc list-inside space-y-1 mb-4 last:mb-0">
-                                    {children}
-                                  </ul>
-                                ),
-                                li: ({
-                                  children,
-                                }: {
-                                  children: React.ReactNode;
-                                }) => (
-                                  <li className="text-gray-300">{children}</li>
-                                ),
-                              }}
-                            >
-                              {message.isComplete ? message.content : displayedText}
-                            </ReactMarkdown>
-                          </div>
+                          <MessageContent content={message.content} />
                           {!message.isComplete && (
                             <div className="mt-1 h-4 w-4">
                               <Loader2 className="h-4 w-4 animate-spin text-blue-500" />

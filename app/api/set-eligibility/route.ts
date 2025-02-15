@@ -5,17 +5,20 @@ export async function POST(req: Request) {
     try {
         const { isEligible } = await req.json();
 
+        // Validate and coerce to boolean
+        const eligibilityStatus = Boolean(isEligible);
+
         // Create response
         const response = NextResponse.json({ success: true });
 
-        // Set cookie
+        // Set cookie with string value
         response.cookies.set({
             name: "isEligible",
-            value: String(isEligible),
+            value: eligibilityStatus.toString(), // Explicit string conversion
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
-            maxAge: 60 * 60 * 24 * 7, // 7 days
+            maxAge: eligibilityStatus ? 60 * 60 * 24 * 7 : 0,
         });
 
         return response;

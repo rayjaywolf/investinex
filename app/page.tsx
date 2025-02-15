@@ -22,6 +22,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { CircleBackground } from "@/components/ui/circle-background";
 import { supercharge,coolvetica } from "@/app/fonts";
+import EligibilityBadge from "@/components/EligibilityBadge";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -107,10 +108,7 @@ export default function Home() {
             <div className="flex flex-col items-center space-y-6 sm:space-y-8 text-center">
               <div className="space-y-4 sm:space-y-6">
                 <div className="flex justify-center hero-content">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-sm text-blue-500">
-                    <Brain className="w-3.5 h-3.5" />
-                    <span className="font-medium">Powered by AI</span>
-                  </div>
+                  <EligibilityBadge />
                 </div>
                 <h1 className="hero-content text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-tighter">
                   <span className={`bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 bg-[length:200%] animate-[gradient-move_3s_ease-in-out_infinite] ${coolvetica.className} tracking-wide`}>
@@ -245,10 +243,10 @@ export default function Home() {
                 <div className="stat-card rounded-lg border bg-card p-6 sm:p-8">
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <Coins className="w-8 h-8 text-green-500" />
-                      <h3 className="text-4xl font-bold">100+</h3>
+                      <LineChart className="w-8 h-8 text-emerald-500" />
+                      <h3 className="text-4xl font-bold">95%</h3>
                     </div>
-                    <p className="text-gray-400">Supported cryptocurrencies</p>
+                    <p className="text-gray-400">Prediction accuracy</p>
                   </div>
                 </div>
                 <div className="stat-card rounded-lg border bg-card p-6 sm:p-8">
