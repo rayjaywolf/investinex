@@ -8,6 +8,7 @@ const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 
 const TEST_WALLETS = [
   "EAqsoqrDLXxBX5P1LNozeBeyRWMQn1hVYrAVUBCXrgJ3",
+  "GFdp2c8r9j5qa1Mmc9u8Vbdswsx613KfgSG1etP4qVWh"
 ];
 
 export async function POST(req: Request) {
