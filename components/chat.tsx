@@ -113,7 +113,7 @@ function QuickAccessCoins({ onSelect }: { onSelect: (coin: string) => void }) {
           ) : (
             <div className="w-5 h-5 rounded-full bg-blue-500/20" />
           )}
-          <span className="text-sm font-medium text-blue-400">${coin.name}</span>
+          <span className="text-sm font-medium text-blue-400">${coin.symbol}</span>
         </button>
       ))}
     </div>
