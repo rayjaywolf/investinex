@@ -19,6 +19,15 @@ const COINGECKO_REGEX = /coingecko\.com\/en\/coins\/([a-zA-Z0-9-]+)/;
 const DEXSCREENER_URL_REGEX = /dexscreener\.com\/[a-zA-Z0-9]+\/([a-zA-Z0-9]+)/;
 const PAIR_REGEX = /\$([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/;
 const URL_REGEX = /(https?:\/\/[^\s]+)/;
+const CONTRACT_ADDRESS_REGEX = /^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$/;
+const CHAIN_EXPLORERS = {
+  ethereum: "https://api.etherscan.io/api",
+  bsc: "https://api.bscscan.com/api",
+  polygon: "https://api.polygonscan.com/api",
+  arbitrum: "https://api.arbiscan.io/api",
+  optimism: "https://api.optimistic.etherscan.io/api",
+  solana: "https://api.solscan.io/account",
+};
 
 // --- Type Definitions ---
 interface CoinData {
@@ -28,6 +37,8 @@ interface CoinData {
   change24h: number | null;
   baseSymbol?: string;
   pairAddress?: string;
+  contractAddress?: string;
+  chain?: string;
 }
 
 // --- Prompts ---
@@ -35,6 +46,7 @@ const SAMARITAN_PROMPT = `You are Investinex, a specialized cryptocurrency inves
 
 1. **Analysis Protocol** 📊:
    - Analyze the provided market data and current conditions
+   - For contract addresses, include chain information and contract verification status
    - Focus on short-term trading opportunities (20 minutes to 8 hours)
    - Consider market volatility and risk management
    - Base recommendations on technical analysis and market sentiment
@@ -312,7 +324,97 @@ function extractDexscreenerPair(
   return null;
 }
 
+async function fetchTokenFromContract(address: string): Promise<CoinData | null> {
+  try {
+    // Handle Solana addresses differently
+    if (address.length >= 32 && address.length <= 44) {
+      const solanaResponse = await axios.get(
+        `https://api.dexscreener.com/latest/dex/tokens/${address}`
+      );
+
+      if (solanaResponse.data.pairs?.length > 0) {
+        const bestPair = solanaResponse.data.pairs.reduce((prev, current) => 
+          (prev.liquidity?.usd || 0) > (current.liquidity?.usd || 0) ? prev : current
+        );
+
+        return {
+          name: bestPair.baseToken?.name || "Unknown Token",
+          symbol: bestPair.baseToken?.symbol || "UNKNOWN",
+          price: parseFloat(bestPair.priceUsd || "0"),
+          change24h: parseFloat(bestPair.priceChange?.h24 || "0"),
+          contractAddress: address,
+          chain: "solana",
+          baseSymbol: bestPair.quoteToken?.symbol,
+          pairAddress: bestPair.pairAddress,
+        };
+      }
+    }
+
+    // First try DexScreener as it supports multiple chains
+    const dexResponse = await axios.get(
+      `${DEXSCREENER_API_BASE}/tokens/${address}`
+    );
+
+    if (dexResponse.data.pairs && dexResponse.data.pairs.length > 0) {
+      const bestPair = dexResponse.data.pairs.reduce((prev, current) => {
+        return (prev.liquidity?.usd || 0) > (current.liquidity?.usd || 0)
+          ? prev
+          : current;
+      });
+
+      return {
+        name: bestPair.baseToken.name || "Unknown Token",
+        symbol: bestPair.baseToken.symbol.toUpperCase(),
+        price: parseFloat(bestPair.priceUsd || "0"),
+        change24h: parseFloat(bestPair.priceChange?.h24 || "0"),
+        contractAddress: address,
+        chain: bestPair.chainId,
+        baseSymbol: bestPair.quoteToken.symbol,
+        pairAddress: bestPair.pairAddress,
+      };
+    }
+
+    // If DexScreener fails, try each chain explorer
+    for (const [chain, apiUrl] of Object.entries(CHAIN_EXPLORERS)) {
+      const response = await axios.get(apiUrl, {
+        params: {
+          module: "token",
+          action: "tokeninfo",
+          contractaddress: address,
+          apikey: process.env[`${chain.toUpperCase()}_SCAN_API_KEY`],
+        },
+      });
+
+      if (response.data.status === "1" && response.data.result) {
+        const tokenInfo = response.data.result[0];
+        
+        // Try to get price from CoinGecko using symbol
+        const cgData = await fetchCoinGeckoPrice(tokenInfo.symbol);
+        
+        return {
+          name: tokenInfo.name,
+          symbol: tokenInfo.symbol,
+          price: cgData?.price || 0,
+          change24h: cgData?.change24h || null,
+          contractAddress: address,
+          chain: chain,
+        };
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error("[CONTRACT_FETCH_ERROR]", error);
+    return null;
+  }
+}
+
 async function getCoinData(userInput: string): Promise<CoinData | null> {
+  // First check if input is a contract address
+  if (CONTRACT_ADDRESS_REGEX.test(userInput.trim())) {
+    return await fetchTokenFromContract(userInput.trim());
+  }
+
   const dexscreenerPair = extractDexscreenerPair(userInput);
 
   if (dexscreenerPair) {
