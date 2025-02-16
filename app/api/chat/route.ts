@@ -714,7 +714,7 @@ async function formatTradingRecommendation(
   const entryMatch = analysisData.entryStrategy.match(/(Short|Long) at (\$[\d.]+)(.*)/);
   const [_, entryType, entryPrice, entryReason] = entryMatch || ['', '', '', ''];
   const entryText = `${entryType} at `;
-  const entryColor = entryType.toLowerCase() === 'short' ? 'text-rose-400' : 'text-emerald-400';
+  const entryColor = entryType.toLowerCase() === 'short' ? 'text-white-400' : 'text-white-400';
 
   const tableHTML = FORMATTING_PROMPT
     .replace("{{fontClass}}", coolvetica.className)
