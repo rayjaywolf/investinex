@@ -107,9 +107,6 @@ export default function Home() {
           <div className="container px-4 sm:px-8 relative z-10">
             <div className="flex flex-col items-center space-y-6 sm:space-y-8 text-center">
               <div className="space-y-4 sm:space-y-6">
-                <div className="flex justify-center hero-content">
-                  <EligibilityBadge />
-                </div>
                 <h1 className="hero-content text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-tighter">
                   <span className={`bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 bg-[length:200%] animate-[gradient-move_3s_ease-in-out_infinite] ${coolvetica.className} tracking-wide`}>
                     Investinex
