@@ -189,10 +189,7 @@ async function fetchCoinGeckoPrice(coinId: string) {
 }
 
 // Helper function to fetch price from Dexscreener
-async function fetchDexscreenerPrice(
-  tokenSymbol: string,
-  baseSymbol: string
-) {
+async function fetchDexscreenerPrice(tokenSymbol: string, baseSymbol: string) {
   try {
     // Fetch the pair data from Dexscreener
     const pairResponse = await axios.get(
@@ -288,21 +285,23 @@ function extractCoinGeckoId(url: string): string | null {
 }
 
 // New helper function to detect and parse Dexscreener URLs and pairs
-function extractDexscreenerPair(text: string): { token: string; base: string } | null {
-    const dexscreenerUrlRegex = /dexscreener\.com\/[a-zA-Z0-9]+\/([a-zA-Z0-9]+)/;
-    const urlMatch = text.match(dexscreenerUrlRegex);
+function extractDexscreenerPair(
+  text: string
+): { token: string; base: string } | null {
+  const dexscreenerUrlRegex = /dexscreener\.com\/[a-zA-Z0-9]+\/([a-zA-Z0-9]+)/;
+  const urlMatch = text.match(dexscreenerUrlRegex);
 
-    if (urlMatch) {
-        // If it's a Dexscreener URL, try to extract pair address and fetch directly
-        return { token: urlMatch[1], base: "DIRECT" }; // Special case for direct links
-    }
+  if (urlMatch) {
+    // If it's a Dexscreener URL, try to extract pair address and fetch directly
+    return { token: urlMatch[1], base: "DIRECT" }; // Special case for direct links
+  }
 
-    const pairRegex = /\$([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/;
-    const match = text.match(pairRegex);
-    if (match) {
-        return { token: match[1], base: match[2] };
-    }
-    return null;
+  const pairRegex = /\$([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/;
+  const match = text.match(pairRegex);
+  if (match) {
+    return { token: match[1], base: match[2] };
+  }
+  return null;
 }
 
 export async function POST(req) {
@@ -336,7 +335,8 @@ export async function POST(req) {
       let coinData = null;
       if (base === "DIRECT") {
         // Extract chain and address from dexscreener link
-        const dexscreenerUrlRegex = /dexscreener\.com\/([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/;
+        const dexscreenerUrlRegex =
+          /dexscreener\.com\/([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/;
         const urlMatch = lastMessage[1].match(dexscreenerUrlRegex);
         if (urlMatch) {
           const chain = urlMatch[1];
@@ -360,17 +360,14 @@ export async function POST(req) {
 
               if (!quoteTokenPairs || quoteTokenPairs.length === 0) {
                 return NextResponse.json({
-                  content:
-                    "Unable to fetch USD price for the quote token.",
+                  content: "Unable to fetch USD price for the quote token.",
                 });
               }
 
               // Find a liquid USD pair for the quote token
               let usdQuotePair = null;
               for (const quotePair of quoteTokenPairs) {
-                if (
-                  quotePair.quoteToken.symbol.toUpperCase() === "USDC"
-                ) {
+                if (quotePair.quoteToken.symbol.toUpperCase() === "USDC") {
                   if (
                     !usdQuotePair ||
                     (quotePair.liquidity?.usd ?? 0) >
@@ -383,14 +380,11 @@ export async function POST(req) {
 
               if (!usdQuotePair) {
                 return NextResponse.json({
-                  content:
-                    "Could not find a USD pair for the quote token.",
+                  content: "Could not find a USD pair for the quote token.",
                 });
               }
 
-              const quoteTokenPriceUsd = parseFloat(
-                usdQuotePair.priceNative
-              );
+              const quoteTokenPriceUsd = parseFloat(usdQuotePair.priceNative);
               priceUsd *= quoteTokenPriceUsd; // Convert to USD
             }
 
@@ -412,7 +406,7 @@ export async function POST(req) {
         finalInput = `${lastMessage[1]}\n\nCurrent market data for ${
           coinData.name
         } (${coinData.symbol}/${coinData.baseSymbol}):
-- Price: $${coinData.price.toFixed(6)}
+- Price: $${coinData.price.toFixed(8)}
 - 24h Change: ${coinData.change24h ? coinData.change24h.toFixed(2) : "N/A"}%`;
       } else {
         return NextResponse.json({
@@ -434,7 +428,7 @@ export async function POST(req) {
             finalInput = `${lastMessage[1]}\n\nCurrent market data for ${
               coinData.name
             } (${coinData.symbol}):
-- Price: $${coinData.price.toFixed(2)}
+- Price: $${coinData.price.toFixed(8)}
 - 24h Change: ${coinData.change24h.toFixed(2)}%`;
           } else {
             return NextResponse.json({
@@ -510,27 +504,26 @@ export async function POST(req) {
 
         // Dexscreener fallback, and Google fallback
         if (!coinData) {
-            coinData = await fetchDexscreenerPrice(coin, "USDC"); // Try Dexscreener
+          coinData = await fetchDexscreenerPrice(coin, "USDC"); // Try Dexscreener
         }
 
         if (coinData) {
           finalInput = `${lastMessage[1]}\n\nCurrent market data for ${
             coinData.name
-          } (${coinData.symbol}${coinData.baseSymbol ? "/" + coinData.baseSymbol : ""}):
-- Price: $${coinData.price.toFixed(coinData.baseSymbol ? 6 : 2)}
+          } (${coinData.symbol}${
+            coinData.baseSymbol ? "/" + coinData.baseSymbol : ""
+          }):
+- Price: $${coinData.price.toFixed(8)}
 - 24h Change: ${coinData.change24h ? coinData.change24h.toFixed(2) : "N/A"}%`;
         } else {
           // Fall back to Google Custom Search ONLY if both fail
           const cryptoQuery = `${coin} price cryptocurrency`;
           const searchResults = await fetchSearchResults(cryptoQuery);
           const relevantInfo = searchResults.items
-            ? searchResults.items
-                .map((item) => item.snippet)
-                .join(" ")
+            ? searchResults.items.map((item) => item.snippet).join(" ")
             : "No price information found.";
 
           finalInput = `${lastMessage[1]}\n\nBased on the following current price information for ${coin}: ${relevantInfo}`;
-
         }
       }
     }
@@ -547,19 +540,18 @@ export async function POST(req) {
       ["system", FORMATTING_PROMPT],
       ["human", "{input}"],
     ]);
-    
+
     const formattingChain = formattingPrompt.pipe(model);
-    
+
     // Get formatted response
     const formattedResponse = await formattingChain.invoke({
       input: initialResponse.content,
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       content: formattedResponse.content,
-      rawContent: initialResponse.content // Include raw content for reference if needed
+      rawContent: initialResponse.content, // Include raw content for reference if needed
     });
-
   } catch (error) {
     console.error("[CHAT_ERROR]", error);
     return NextResponse.json(

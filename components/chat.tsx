@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Bot, User, TrendingUp } from "lucide-react";
+import { Loader2, Send, Bot, User, TrendingUp, Save } from "lucide-react";
 import { useTypewriter } from "@/hooks/useTypewriter";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -20,6 +20,7 @@ import { prisma } from "@/lib/db";
 import { getCoinGeckoData } from "@/lib/coins";
 import DOMPurify from 'isomorphic-dompurify';
 import parse from 'html-react-parser';
+import { toast } from "sonner";
 
 interface Message {
   role: "user" | "assistant";
@@ -312,6 +313,43 @@ export function Chat() {
     }
   };
 
+  const handleSaveChatLogs = () => {
+    const formattedChat = messages.map(msg => {
+      const role = msg.role === 'assistant' ? 'AI' : 'You';
+      const content = msg.rawContent || msg.content;
+      
+      let formattedMessage = `${role}: ${content}`;
+      
+      if (msg.tradingData) {
+        formattedMessage += '\n\nTrading Details:';
+        formattedMessage += `\n• Cryptocurrency: ${msg.tradingData.cryptocurrency}`;
+        formattedMessage += `\n• Current Price: ${msg.tradingData.currentPrice}`;
+        formattedMessage += `\n• Leverage: ${msg.tradingData.leverage}`;
+        formattedMessage += `\n• Stop Loss: ${msg.tradingData.stopLoss}`;
+        formattedMessage += `\n• Take Profit: ${msg.tradingData.takeProfit}`;
+        formattedMessage += `\n• Duration: ${msg.tradingData.duration}`;
+        formattedMessage += `\n• Risk Level: ${msg.tradingData.risk}`;
+      }
+      
+      return formattedMessage;
+    }).join('\n\n---\n\n');
+
+    const timestamp = new Date().toLocaleString();
+    const chatLog = `Chat Log - ${timestamp}\n\n${formattedChat}`;
+    
+    navigator.clipboard.writeText(chatLog).then(() => {
+      toast.success('Chat log copied to clipboard', {
+        description: 'The chat history has been saved to your clipboard',
+        duration: 3000,
+      });
+    }).catch(() => {
+      toast.error('Failed to copy chat log', {
+        description: 'Please try again',
+        duration: 3000,
+      });
+    });
+  };
+
   return (
     <>
       {/* Grid Pattern Background */}
@@ -352,6 +390,17 @@ export function Chat() {
           isLoading && "animate-pulse"
         )}
       >
+        <div className="flex justify-end p-2 border-b border-white/10">
+          <Button
+            onClick={handleSaveChatLogs}
+            variant="ghost"
+            size="sm"
+            className="text-xs gap-2 text-gray-400 hover:text-gray-300"
+          >
+            <Save className="h-4 w-4" />
+            Save Chat
+          </Button>
+        </div>
         <ScrollArea ref={scrollRef} className="flex-1 p-4 pt-6">
           <div className="space-y-4 px-4">
             {messages.length === 0 ? (
