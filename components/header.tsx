@@ -68,62 +68,66 @@ export function Header() {
                   <span className="text-zinc-300 hidden sm:inline">Roadmap</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-auto border-white/10 bg-background/95 backdrop-blur-lg">
-                <DialogHeader className="pb-4">
+              <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-auto border border-white/10 bg-background/80 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] supports-[backdrop-filter]:bg-background/50">
+                <DialogHeader className="pb-4 border-b border-white/10">
                   <DialogTitle className="flex items-center gap-2 text-2xl">
-                    <CalendarClock className="h-6 w-6 text-primary" />
-                    Product Roadmap
+                    <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                      <Map className="h-6 w-6 text-blue-500" />
+                    </div>
+                    <span className="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 bg-clip-text text-transparent">
+                      Product Roadmap
+                    </span>
                   </DialogTitle>
                 </DialogHeader>
-                <div className="pr-4">
+                <div className="pr-4 pt-6">
                   <div className="grid gap-8">
-                    <div className="relative pl-8 border-l-2 border-primary/20">
+                    <div className="relative pl-8 border-l-2 border-blue-500/20">
                       <div className="absolute -left-[11px] top-1">
-                        <div className="rounded-full bg-background p-0.5">
-                          <CheckCircle2 className="h-5 w-5 text-primary" />
+                        <div className="rounded-full bg-background/80 backdrop-blur-sm p-0.5 border border-blue-500/20">
+                          <CheckCircle2 className="h-5 w-5 text-blue-500" />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                        <h3 className="text-xl font-semibold bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 bg-clip-text text-transparent">
                           Q1 2025 - Launch
                         </h3>
                         <ul className="text-muted-foreground space-y-2">
-                          <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-primary/60" />
+                          <li className="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500/60" />
                             AI-powered market analysis
                           </li>
-                          <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-primary/60" />
+                          <li className="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500/60" />
                             Basic trading recommendations
                           </li>
-                          <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-primary/60" />
+                          <li className="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500/60" />
                             Risk management features
                           </li>
                         </ul>
                       </div>
                     </div>
-                    <div className="relative pl-8 border-l-2 border-primary/20">
+                    <div className="relative pl-8 border-l-2 border-blue-500/20">
                       <div className="absolute -left-[11px] top-1">
-                        <div className="rounded-full bg-background p-0.5">
-                          <div className="h-5 w-5 rounded-full border-2 border-primary/40" />
+                        <div className="rounded-full bg-background/80 backdrop-blur-sm p-0.5 border border-blue-500/20">
+                          <div className="h-5 w-5 rounded-full border-2 border-blue-500/40" />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-xl font-semibold">
+                        <h3 className="text-xl font-semibold text-zinc-300/90 hover:text-blue-400 transition-colors">
                           Q2 2025 - Enhanced Analysis
                         </h3>
                         <ul className="text-muted-foreground space-y-2">
-                          <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                          <li className="flex items-center gap-2 hover:text-blue-400/80 transition-colors">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500/40" />
                             Advanced technical indicators
                           </li>
-                          <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                          <li className="flex items-center gap-2 hover:text-blue-400/80 transition-colors">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500/40" />
                             Portfolio tracking
                           </li>
-                          <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                          <li className="flex items-center gap-2 hover:text-blue-400/80 transition-colors">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500/40" />
                             Performance analytics
                           </li>
                         </ul>
@@ -132,24 +136,24 @@ export function Header() {
                     <div className="relative pl-8 border-l-2 border-primary/20">
                       <div className="absolute -left-[11px] top-1">
                         <div className="rounded-full bg-background p-0.5">
-                          <div className="h-5 w-5 rounded-full border-2 border-primary/40" />
+                          <div className="h-5 w-5 rounded-full border-2 border-blue-500/40" />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-xl font-semibold">
+                        <h3 className="text-xl font-semibold text-zinc-300">
                           Q3 2025 - Social Features
                         </h3>
                         <ul className="text-muted-foreground space-y-2">
                           <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-zinc-400/60" />
                             Community insights
                           </li>
                           <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-zinc-400/60" />
                             Trading strategy sharing
                           </li>
                           <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-zinc-400/60" />
                             Expert collaborations
                           </li>
                         </ul>
@@ -158,24 +162,24 @@ export function Header() {
                     <div className="relative pl-8 border-l-2 border-primary/20">
                       <div className="absolute -left-[11px] top-1">
                         <div className="rounded-full bg-background p-0.5">
-                          <div className="h-5 w-5 rounded-full border-2 border-primary/40" />
+                          <div className="h-5 w-5 rounded-full border-2 border-blue-500/40" />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-xl font-semibold">
+                        <h3 className="text-xl font-semibold text-zinc-300">
                           Q4 2025 - Advanced Tools
                         </h3>
                         <ul className="text-muted-foreground space-y-2">
                           <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-zinc-400/60" />
                             Automated trading strategies
                           </li>
                           <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-zinc-400/60" />
                             Custom indicator builder
                           </li>
                           <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-zinc-400/60" />
                             Advanced risk modeling
                           </li>
                         </ul>

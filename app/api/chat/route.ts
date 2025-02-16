@@ -1,11 +1,36 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { NextResponse } from "next/server";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
+import {
+  ChatPromptTemplate,
+  SystemMessagePromptTemplate,
+  HumanMessagePromptTemplate,
+} from "@langchain/core/prompts";
 import { MessagesPlaceholder } from "@langchain/core/prompts";
 import axios from "axios";
+import axiosRetry from "axios-retry";
 import { trackCoinSearch } from "@/lib/coins";
+import { z } from "zod";
 
-// Main trading recommendation prompt.
+// --- Constants ---
+const COINGECKO_API_BASE = "https://api.coingecko.com/api/v3";
+const DEXSCREENER_API_BASE = "https://api.dexscreener.com/latest/dex";
+const GOOGLE_SEARCH_URL = "https://www.googleapis.com/customsearch/v1";
+const COINGECKO_REGEX = /coingecko\.com\/en\/coins\/([a-zA-Z0-9-]+)/;
+const DEXSCREENER_URL_REGEX = /dexscreener\.com\/[a-zA-Z0-9]+\/([a-zA-Z0-9]+)/;
+const PAIR_REGEX = /\$([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/;
+const URL_REGEX = /(https?:\/\/[^\s]+)/;
+
+// --- Type Definitions ---
+interface CoinData {
+  name: string;
+  symbol: string;
+  price: number;
+  change24h: number | null;
+  baseSymbol?: string;
+  pairAddress?: string;
+}
+
+// --- Prompts ---
 const SAMARITAN_PROMPT = `You are Investinex, a specialized cryptocurrency investment advisor. You already have all the necessary market data, so provide immediate analysis without any waiting messages. Here's your operational framework:
 
 1. **Analysis Protocol** 📊:
@@ -24,7 +49,15 @@ const SAMARITAN_PROMPT = `You are Investinex, a specialized cryptocurrency inves
 
 Important: Never say you are waiting or gathering information. You already have all required data in the input. Provide immediate, actionable trading analysis.
 
-Format your response in a clear, structured manner with appropriate spacing and emojis for better readability.`;
+Format your response in a clear, structured manner with appropriate spacing and emojis for better readability.
+
+Example Input:
+User: $SHIB
+Market Data: SHIB (SHIB/USDC): Price: $0.000025, 24h Change: -2.5%
+
+Example Output:
+(Formatted HTML with Tailwind as described in FORMATTING_PROMPT)
+`;
 
 // Extraction prompt for queries without links – looks for tokens with a '$'
 const EXTRACT_PROMPT = `You are an assistant that extracts cryptocurrency symbols or names mentioned in a sentence.
@@ -112,24 +145,12 @@ Guidelines:
 Format the following trading analysis with proper HTML and Tailwind classes:
 "{input}"`;
 
-// Create the chain for generating the final trading recommendation.
-const chatPrompt = ChatPromptTemplate.fromMessages([
-  ["system", SAMARITAN_PROMPT],
-  new MessagesPlaceholder("chat_history"),
-  ["human", "{input}"],
-]);
-
-// Create the chain for extracting the crypto name from non-link queries.
-const extractPrompt = ChatPromptTemplate.fromMessages([
-  ["system", EXTRACT_PROMPT],
-  ["human", "{input}"],
-]);
-
-// Helper function to fetch search results via Google Custom Search.
-async function fetchSearchResults(query) {
+// --- Helper Functions ---
+async function fetchSearchResults(query: string) {
+  axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
   const apiKey = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY;
   const cx = process.env.GOOGLE_CSE_ID;
-  const url = "https://www.googleapis.com/customsearch/v1";
+  const url = GOOGLE_SEARCH_URL;
 
   const params = {
     q: query,
@@ -146,12 +167,11 @@ async function fetchSearchResults(query) {
   }
 }
 
-// Helper function to fetch price from CoinGecko
-async function fetchCoinGeckoPrice(coinId: string) {
+async function fetchCoinGeckoPrice(coinId: string): Promise<CoinData | null> {
   try {
-    // First try to get the coin ID if a symbol was provided
+    axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
     const searchResponse = await axios.get(
-      `https://api.coingecko.com/api/v3/search?query=${coinId}`
+      `${COINGECKO_API_BASE}/search?query=${coinId}`
     );
 
     const coinMatch = searchResponse.data.coins?.[0];
@@ -159,15 +179,13 @@ async function fetchCoinGeckoPrice(coinId: string) {
       return null;
     }
 
-    // Get the current price using the coin ID
     const priceResponse = await axios.get(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${coinMatch.id}&vs_currencies=usd&include_24hr_change=true`
+      `${COINGECKO_API_BASE}/simple/price?ids=${coinMatch.id}&vs_currencies=usd&include_24hr_change=true`
     );
 
     if (priceResponse.data[coinMatch.id]) {
       const data = priceResponse.data[coinMatch.id];
 
-      // Track the search
       try {
         await trackCoinSearch(coinMatch.name, coinMatch.symbol);
       } catch (error) {
@@ -178,22 +196,24 @@ async function fetchCoinGeckoPrice(coinId: string) {
         name: coinMatch.name,
         symbol: coinMatch.symbol.toUpperCase(),
         price: data.usd,
-        change24h: data.usd_24h_change,
+        change24h: data.usd_24h_change ?? null,
       };
     }
     return null;
   } catch (error) {
     console.error("[COINGECKO_ERROR]", error);
-    return null; // Return null on error, don't throw
+    return null;
   }
 }
 
-// Helper function to fetch price from Dexscreener
-async function fetchDexscreenerPrice(tokenSymbol: string, baseSymbol: string) {
+async function fetchDexscreenerPrice(
+  tokenSymbol: string,
+  baseSymbol: string
+): Promise<CoinData | null> {
   try {
-    // Fetch the pair data from Dexscreener
+    axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
     const pairResponse = await axios.get(
-      `https://api.dexscreener.com/latest/dex/search?q=${tokenSymbol}/${baseSymbol}`
+      `${DEXSCREENER_API_BASE}/search?q=${tokenSymbol}/${baseSymbol}`
     );
     const pairs = pairResponse.data.pairs;
 
@@ -201,7 +221,6 @@ async function fetchDexscreenerPrice(tokenSymbol: string, baseSymbol: string) {
       return null;
     }
 
-    // Find the pair with the highest liquidity.
     let bestPair = null;
     for (const pair of pairs) {
       if (
@@ -217,21 +236,18 @@ async function fetchDexscreenerPrice(tokenSymbol: string, baseSymbol: string) {
       return null;
     }
 
-    // Convert price to USD if necessary
     let priceUsd = parseFloat(bestPair.priceNative);
     if (bestPair.quoteToken.symbol.toUpperCase() !== "USDC") {
-      // Fetch the current price of the quote token in USD (e.g., SOL)
       const quoteTokenPriceResponse = await axios.get(
-        `https://api.dexscreener.com/latest/dex/tokens/${bestPair.quoteToken.address}`
+        `${DEXSCREENER_API_BASE}/tokens/${bestPair.quoteToken.address}`
       );
 
       const quoteTokenPairs = quoteTokenPriceResponse.data.pairs;
 
       if (!quoteTokenPairs || quoteTokenPairs.length === 0) {
-        return null; // Or throw an error, depending on your needs
+        return null;
       }
 
-      // Find a liquid USD pair for the quote token
       let usdQuotePair = null;
       for (const pair of quoteTokenPairs) {
         if (pair.quoteToken.symbol.toUpperCase() === "USDC") {
@@ -245,11 +261,11 @@ async function fetchDexscreenerPrice(tokenSymbol: string, baseSymbol: string) {
       }
 
       if (!usdQuotePair) {
-        return null; // Could not find a USD pair for the quote token
+        return null;
       }
 
       const quoteTokenPriceUsd = parseFloat(usdQuotePair.priceNative);
-      priceUsd *= quoteTokenPriceUsd; // Convert to USD
+      priceUsd *= quoteTokenPriceUsd;
     }
 
     return {
@@ -257,58 +273,275 @@ async function fetchDexscreenerPrice(tokenSymbol: string, baseSymbol: string) {
       symbol: bestPair.baseToken.symbol.toUpperCase(),
       price: priceUsd,
       change24h: bestPair.priceChange.h24,
-      baseSymbol: bestPair.quoteToken.symbol.toUpperCase(), // Now using quoteToken as base
+      baseSymbol: bestPair.quoteToken.symbol.toUpperCase(),
       pairAddress: bestPair.pairAddress,
     };
   } catch (error) {
     console.error("[DEXSCREENER_ERROR]", error);
-    return null; // Return null on error
+    return null;
   }
 }
 
-// Helper function to extract the first URL from a text string.
-function extractURL(text) {
-  const urlRegex = /(https?:\/\/[^\s]+)/;
-  const match = text.match(urlRegex);
+function extractURL(text: string): string | null {
+  const match = text.match(URL_REGEX);
   return match ? match[0] : null;
 }
 
-// Helper function to detect and parse CoinGecko URLs
 function extractCoinGeckoId(url: string): string | null {
   try {
-    const coinGeckoRegex = /coingecko\.com\/en\/coins\/([a-zA-Z0-9-]+)/;
-    const match = url.match(coinGeckoRegex);
+    const match = url.match(COINGECKO_REGEX);
     return match ? match[1] : null;
   } catch (error) {
     return null;
   }
 }
 
-// New helper function to detect and parse Dexscreener URLs and pairs
 function extractDexscreenerPair(
   text: string
 ): { token: string; base: string } | null {
-  const dexscreenerUrlRegex = /dexscreener\.com\/[a-zA-Z0-9]+\/([a-zA-Z0-9]+)/;
-  const urlMatch = text.match(dexscreenerUrlRegex);
+  const urlMatch = text.match(DEXSCREENER_URL_REGEX);
 
   if (urlMatch) {
-    // If it's a Dexscreener URL, try to extract pair address and fetch directly
-    return { token: urlMatch[1], base: "DIRECT" }; // Special case for direct links
+    return { token: urlMatch[1], base: "DIRECT" };
   }
 
-  const pairRegex = /\$([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/;
-  const match = text.match(pairRegex);
+  const match = text.match(PAIR_REGEX);
   if (match) {
     return { token: match[1], base: match[2] };
   }
   return null;
 }
 
-export async function POST(req) {
-  try {
-    const { messages } = await req.json();
+async function getCoinData(userInput: string): Promise<CoinData | null> {
+  const dexscreenerPair = extractDexscreenerPair(userInput);
 
-    // Initialize the AI model.
+  if (dexscreenerPair) {
+    const { token, base } = dexscreenerPair;
+    let coinData = null;
+    if (base === "DIRECT") {
+      const urlMatch = userInput.match(DEXSCREENER_URL_REGEX);
+      if (urlMatch) {
+        const chain = urlMatch[1];
+        const pairAddress = urlMatch[2];
+
+        const pairResponse = await axios.get(
+          `${DEXSCREENER_API_BASE}/pairs/${chain}/${pairAddress}`
+        );
+        const pair = pairResponse.data.pair;
+
+        if (pair) {
+          let priceUsd = parseFloat(pair.priceNative);
+          if (pair.quoteToken.symbol.toUpperCase() !== "USDC") {
+            const quoteTokenPriceResponse = await axios.get(
+              `${DEXSCREENER_API_BASE}/tokens/${pair.quoteToken.address}`
+            );
+
+            const quoteTokenPairs = quoteTokenPriceResponse.data.pairs;
+
+            if (!quoteTokenPairs || quoteTokenPairs.length === 0) {
+              return null;
+            }
+
+            let usdQuotePair = null;
+            for (const quotePair of quoteTokenPairs) {
+              if (quotePair.quoteToken.symbol.toUpperCase() === "USDC") {
+                if (
+                  !usdQuotePair ||
+                  (quotePair.liquidity?.usd ?? 0) >
+                    (usdQuotePair.liquidity?.usd ?? 0)
+                ) {
+                  usdQuotePair = quotePair;
+                }
+              }
+            }
+
+            if (!usdQuotePair) {
+              return null;
+            }
+
+            const quoteTokenPriceUsd = parseFloat(usdQuotePair.priceNative);
+            priceUsd *= quoteTokenPriceUsd;
+          }
+
+          coinData = {
+            name: pair.baseToken.name,
+            symbol: pair.baseToken.symbol.toUpperCase(),
+            price: priceUsd,
+            change24h: pair.priceChange.h24,
+            baseSymbol: pair.quoteToken.symbol.toUpperCase(),
+            pairAddress: pair.pairAddress,
+          };
+        }
+      }
+    } else {
+      coinData = await fetchDexscreenerPrice(token, base);
+    }
+
+    return coinData;
+  } else {
+    const link = extractURL(userInput);
+    if (link) {
+      const coinGeckoId = extractCoinGeckoId(link);
+
+      if (coinGeckoId) {
+        const coinData = await fetchCoinGeckoPrice(coinGeckoId);
+        return coinData;
+      } else {
+        try {
+          const linkResponse = await axios.get(link);
+          let pageText = linkResponse.data;
+          pageText = pageText.replace(/<[^>]*>/g, " ");
+
+          const linkExtractPrompt = ChatPromptTemplate.fromMessages([
+            ["system", LINK_EXTRACTION_PROMPT],
+            ["human", "{input}"],
+          ]);
+          const linkExtractChain = linkExtractPrompt.pipe(
+            new ChatGoogleGenerativeAI({
+              modelName: "gemini-2.0-flash-exp",
+              maxRetries: 2,
+              temperature: 0.8,
+              apiKey: process.env.GOOGLE_API_KEY,
+            })
+          );
+          const extractionFromLink = await linkExtractChain.invoke({
+            input: pageText,
+          });
+          const extractedInfo = extractionFromLink.content.trim();
+
+          const coinMatch = extractedInfo.match(/Coin:\s*([^,]+)/i);
+          const priceMatch = extractedInfo.match(/Price:\s*(.+)/i);
+          const coin = coinMatch ? coinMatch[1].trim() : "";
+          const priceInfo = priceMatch ? priceMatch[1].trim() : "";
+
+          if (!coin) {
+            return null;
+          }
+
+          return {
+            name: coin,
+            symbol: coin,
+            price: parseFloat(priceInfo.replace(/[^0-9.-]+/g, "")),
+            change24h: null,
+          };
+        } catch (error) {
+          console.error("[LINK_FETCH_ERROR]", error);
+          return null;
+        }
+      }
+    } else {
+      const extractChain = ChatPromptTemplate.fromMessages([
+        ["system", EXTRACT_PROMPT],
+        ["human", "{input}"],
+      ]).pipe(
+        new ChatGoogleGenerativeAI({
+          modelName: "gemini-2.0-flash-exp",
+          maxRetries: 2,
+          temperature: 0.8,
+          apiKey: process.env.GOOGLE_API_KEY,
+        })
+      );
+      const extractionResponse = await extractChain.invoke({
+        input: userInput,
+      });
+      let cryptoSymbols = extractionResponse.content.trim();
+
+      if (cryptoSymbols.toLowerCase() !== "none" && cryptoSymbols !== "") {
+        const symbolsArray = cryptoSymbols.split(/[\s,]+/);
+        let coin = symbolsArray[0];
+        if (coin.startsWith("$")) {
+          coin = coin.substring(1);
+        }
+
+        let coinData = await fetchCoinGeckoPrice(coin);
+
+        if (!coinData) {
+          coinData = await fetchDexscreenerPrice(coin, "USDC");
+        }
+
+        if (coinData) {
+          return coinData;
+        } else {
+          const cryptoQuery = `${coin} price cryptocurrency`;
+          const searchResults = await fetchSearchResults(cryptoQuery);
+          const relevantInfo = searchResults.items
+            ? searchResults.items.map((item) => item.snippet).join(" ")
+            : "No price information found.";
+
+          return {
+            name: coin,
+            symbol: coin,
+            price: parseFloat(relevantInfo.replace(/[^0-9.-]+/g, "")),
+            change24h: null,
+          };
+        }
+      } else {
+        return null;
+      }
+    }
+  }
+}
+
+async function formatTradingRecommendation(
+  rawRecommendation: string,
+  model: ChatGoogleGenerativeAI
+): Promise<string> {
+  const formattingPrompt = ChatPromptTemplate.fromMessages([
+    ["system", FORMATTING_PROMPT],
+    ["human", "{input}"],
+  ]);
+
+  const formattingChain = formattingPrompt.pipe(model);
+
+  const formattedResponse = await formattingChain.invoke({
+    input: rawRecommendation,
+  });
+
+  return formattedResponse.content;
+}
+
+async function generateTradingRecommendation(
+  coinData: CoinData,
+  chatHistory: { role: string; content: string }[],
+  model: ChatGoogleGenerativeAI,
+  lastMessage: string
+): Promise<string> {
+  const finalInput = `${lastMessage}\n\nCurrent market data for ${
+    coinData.name
+  } (${coinData.symbol}${coinData.baseSymbol ? "/" + coinData.baseSymbol : ""}):
+- Price: $${coinData.price.toFixed(8)}
+- 24h Change: ${coinData.change24h ? coinData.change24h.toFixed(2) : "N/A"}%`;
+
+  const finalChain = ChatPromptTemplate.fromMessages([
+    ["system", SAMARITAN_PROMPT],
+    new MessagesPlaceholder("chat_history"),
+    ["human", "{input}"],
+  ]).pipe(model);
+
+  const initialResponse = await finalChain.invoke({
+    chat_history: chatHistory,
+    input: finalInput,
+  });
+
+  return initialResponse.content;
+}
+
+const requestSchema = z.object({
+  messages: z.array(z.array(z.string())),
+});
+
+export async function POST(req: Request) {
+  try {
+    const validatedReq = requestSchema.safeParse(await req.json());
+    if (!validatedReq.success) {
+      return NextResponse.json(
+        { error: "Invalid input format." },
+        { status: 400 }
+      );
+    }
+
+    const { messages } = validatedReq.data;
+
     const model = new ChatGoogleGenerativeAI({
       modelName: "gemini-2.0-flash-exp",
       maxRetries: 2,
@@ -316,241 +549,35 @@ export async function POST(req) {
       apiKey: process.env.GOOGLE_API_KEY,
     });
 
-    // Prepare chat history (excluding system messages).
     const chatHistory = messages
       .slice(0, -1)
       .filter((msg) => msg[0] !== "system")
       .map((msg) => ({ role: msg[0], content: msg[1] }));
 
-    const lastMessage = messages[messages.length - 1];
-    let finalInput = lastMessage[1];
-    let coin = "";
-    let priceInfo = "";
+    const lastMessage = messages[messages.length - 1][1];
+    const coinData = await getCoinData(lastMessage);
 
-    // Check if the input is a Dexscreener pair or URL
-    const dexscreenerPair = extractDexscreenerPair(lastMessage[1]);
-
-    if (dexscreenerPair) {
-      const { token, base } = dexscreenerPair;
-      let coinData = null;
-      if (base === "DIRECT") {
-        // Extract chain and address from dexscreener link
-        const dexscreenerUrlRegex =
-          /dexscreener\.com\/([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/;
-        const urlMatch = lastMessage[1].match(dexscreenerUrlRegex);
-        if (urlMatch) {
-          const chain = urlMatch[1];
-          const pairAddress = urlMatch[2];
-
-          // Fetch pair directly using the pair address
-          const pairResponse = await axios.get(
-            `https://api.dexscreener.com/latest/dex/pairs/${chain}/${pairAddress}`
-          );
-          const pair = pairResponse.data.pair;
-
-          if (pair) {
-            // Convert price to USD if necessary
-            let priceUsd = parseFloat(pair.priceNative);
-            if (pair.quoteToken.symbol.toUpperCase() !== "USDC") {
-              const quoteTokenPriceResponse = await axios.get(
-                `https://api.dexscreener.com/latest/dex/tokens/${pair.quoteToken.address}`
-              );
-
-              const quoteTokenPairs = quoteTokenPriceResponse.data.pairs;
-
-              if (!quoteTokenPairs || quoteTokenPairs.length === 0) {
-                return NextResponse.json({
-                  content: "Unable to fetch USD price for the quote token.",
-                });
-              }
-
-              // Find a liquid USD pair for the quote token
-              let usdQuotePair = null;
-              for (const quotePair of quoteTokenPairs) {
-                if (quotePair.quoteToken.symbol.toUpperCase() === "USDC") {
-                  if (
-                    !usdQuotePair ||
-                    (quotePair.liquidity?.usd ?? 0) >
-                      (usdQuotePair.liquidity?.usd ?? 0)
-                  ) {
-                    usdQuotePair = quotePair;
-                  }
-                }
-              }
-
-              if (!usdQuotePair) {
-                return NextResponse.json({
-                  content: "Could not find a USD pair for the quote token.",
-                });
-              }
-
-              const quoteTokenPriceUsd = parseFloat(usdQuotePair.priceNative);
-              priceUsd *= quoteTokenPriceUsd; // Convert to USD
-            }
-
-            coinData = {
-              name: pair.baseToken.name,
-              symbol: pair.baseToken.symbol.toUpperCase(),
-              price: priceUsd,
-              change24h: pair.priceChange.h24,
-              baseSymbol: pair.quoteToken.symbol.toUpperCase(),
-              pairAddress: pair.pairAddress,
-            };
-          }
-        }
-      } else {
-        coinData = await fetchDexscreenerPrice(token, base);
-      }
-
-      if (coinData) {
-        finalInput = `${lastMessage[1]}\n\nCurrent market data for ${
-          coinData.name
-        } (${coinData.symbol}/${coinData.baseSymbol}):
-- Price: $${coinData.price.toFixed(8)}
-- 24h Change: ${coinData.change24h ? coinData.change24h.toFixed(2) : "N/A"}%`;
-      } else {
-        return NextResponse.json({
-          content:
-            "Unable to fetch data for this cryptocurrency pair from Dexscreener.",
-        });
-      }
-    } else {
-      // Existing logic for CoinGecko and other links
-      const link = extractURL(lastMessage[1]);
-      if (link) {
-        // Check if it's a CoinGecko link
-        const coinGeckoId = extractCoinGeckoId(link);
-
-        if (coinGeckoId) {
-          // Direct CoinGecko API call
-          const coinData = await fetchCoinGeckoPrice(coinGeckoId);
-          if (coinData) {
-            finalInput = `${lastMessage[1]}\n\nCurrent market data for ${
-              coinData.name
-            } (${coinData.symbol}):
-- Price: $${coinData.price.toFixed(8)}
-- 24h Change: ${coinData.change24h.toFixed(2)}%`;
-          } else {
-            return NextResponse.json({
-              content:
-                "Unable to fetch data for this cryptocurrency from CoinGecko.",
-            });
-          }
-        } else {
-          // Handle non-CoinGecko links
-          try {
-            const linkResponse = await axios.get(link);
-            let pageText = linkResponse.data;
-            // Strip HTML tags
-            pageText = pageText.replace(/<[^>]*>/g, " ");
-
-            // Use extraction prompt
-            const linkExtractPrompt = ChatPromptTemplate.fromMessages([
-              ["system", LINK_EXTRACTION_PROMPT],
-              ["human", "{input}"],
-            ]);
-            const linkExtractChain = linkExtractPrompt.pipe(model);
-            const extractionFromLink = await linkExtractChain.invoke({
-              input: pageText,
-            });
-            const extractedInfo = extractionFromLink.content.trim();
-
-            const coinMatch = extractedInfo.match(/Coin:\s*([^,]+)/i);
-            const priceMatch = extractedInfo.match(/Price:\s*(.+)/i);
-            coin = coinMatch ? coinMatch[1].trim() : "";
-            priceInfo = priceMatch ? priceMatch[1].trim() : "";
-
-            if (!coin) {
-              return NextResponse.json({
-                content:
-                  "I couldn't detect a valid cryptocurrency in the provided link.",
-              });
-            }
-
-            finalInput = `${lastMessage[1]}\n\nBased on the information extracted from the link: Coin: ${coin}, Price: ${priceInfo}.`;
-          } catch (error) {
-            console.error("[LINK_FETCH_ERROR]", error);
-            return NextResponse.json({
-              content:
-                "Unable to fetch data from the provided link. Please ensure the link is accessible.",
-            });
-          }
-        }
-      } else {
-        // Extract using the '$' prefix.
-        const extractChain = extractPrompt.pipe(model);
-        const extractionResponse = await extractChain.invoke({
-          input: lastMessage[1],
-        });
-        let cryptoSymbols = extractionResponse.content.trim();
-
-        if (cryptoSymbols.toLowerCase() !== "none" && cryptoSymbols !== "") {
-          const symbolsArray = cryptoSymbols.split(/[\s,]+/);
-          coin = symbolsArray[0];
-          if (coin.startsWith("$")) {
-            coin = coin.substring(1);
-          }
-        }
-
-        if (!coin) {
-          return NextResponse.json({
-            content:
-              "I couldn't detect a valid cryptocurrency in your query. Please prefix the cryptocurrency name with a '$' sign (e.g., '$bitcoin') or enter a coingecko link and try again.",
-          });
-        }
-
-        // Try CoinGecko first
-        let coinData = await fetchCoinGeckoPrice(coin);
-
-        // Dexscreener fallback, and Google fallback
-        if (!coinData) {
-          coinData = await fetchDexscreenerPrice(coin, "USDC"); // Try Dexscreener
-        }
-
-        if (coinData) {
-          finalInput = `${lastMessage[1]}\n\nCurrent market data for ${
-            coinData.name
-          } (${coinData.symbol}${
-            coinData.baseSymbol ? "/" + coinData.baseSymbol : ""
-          }):
-- Price: $${coinData.price.toFixed(8)}
-- 24h Change: ${coinData.change24h ? coinData.change24h.toFixed(2) : "N/A"}%`;
-        } else {
-          // Fall back to Google Custom Search ONLY if both fail
-          const cryptoQuery = `${coin} price cryptocurrency`;
-          const searchResults = await fetchSearchResults(cryptoQuery);
-          const relevantInfo = searchResults.items
-            ? searchResults.items.map((item) => item.snippet).join(" ")
-            : "No price information found.";
-
-          finalInput = `${lastMessage[1]}\n\nBased on the following current price information for ${coin}: ${relevantInfo}`;
-        }
-      }
+    if (!coinData) {
+      return NextResponse.json({
+        content:
+          "I couldn't detect a valid cryptocurrency in your query. Please prefix the cryptocurrency name with a '$' sign (e.g., '$bitcoin') or enter a coingecko link and try again.",
+      });
     }
 
-    // Generate the initial trading recommendation
-    const finalChain = chatPrompt.pipe(model);
-    const initialResponse = await finalChain.invoke({
-      chat_history: chatHistory,
-      input: finalInput,
-    });
-
-    // Create formatting prompt chain
-    const formattingPrompt = ChatPromptTemplate.fromMessages([
-      ["system", FORMATTING_PROMPT],
-      ["human", "{input}"],
-    ]);
-
-    const formattingChain = formattingPrompt.pipe(model);
-
-    // Get formatted response
-    const formattedResponse = await formattingChain.invoke({
-      input: initialResponse.content,
-    });
+    const rawRecommendation = await generateTradingRecommendation(
+      coinData,
+      chatHistory,
+      model,
+      lastMessage
+    );
+    const formattedRecommendation = await formatTradingRecommendation(
+      rawRecommendation,
+      model
+    );
 
     return NextResponse.json({
-      content: formattedResponse.content,
-      rawContent: initialResponse.content, // Include raw content for reference if needed
+      content: formattedRecommendation,
+      rawContent: rawRecommendation,
     });
   } catch (error) {
     console.error("[CHAT_ERROR]", error);
