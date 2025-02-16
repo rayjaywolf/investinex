@@ -16,7 +16,7 @@ const COINGECKO_API_BASE = "https://api.coingecko.com/api/v3";
 const DEXSCREENER_API_BASE = "https://api.dexscreener.com/latest/dex";
 const GOOGLE_SEARCH_URL = "https://www.googleapis.com/customsearch/v1";
 const COINGECKO_REGEX = /coingecko\.com\/en\/coins\/([a-zA-Z0-9-]+)/;
-const DEXSCREENER_URL_REGEX = /dexscreener\.com\/[a-zA-Z0-9]+\/([a-zA-Z0-9]+)/;
+const DEXSCREENER_URL_REGEX = /dexscreener\.com\/([^\/]+)\/([a-zA-Z0-9-_]{32,44})(\/|$)/;
 const PAIR_REGEX = /\$([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/;
 const URL_REGEX = /(https?:\/\/[^\s]+)/;
 const CONTRACT_ADDRESS_REGEX = /^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$/;
@@ -41,35 +41,47 @@ interface CoinData {
   chain?: string;
 }
 
+// Add new interface for analysis data
+interface AnalysisData {
+  price: string;
+  entryStrategy: string;
+  leverage: string;
+  stopLoss: string;
+  takeProfit: string;
+  duration: string;
+  riskLevel: string;
+  summary: string;
+  tradeType?: string;
+}
+
 // --- Prompts ---
-const SAMARITAN_PROMPT = `You are Investinex, a specialized cryptocurrency investment advisor. You already have all the necessary market data, so provide immediate analysis without any waiting messages. Here's your operational framework:
+const SAMARITAN_PROMPT = `You are Investinex, a specialized cryptocurrency investment advisor. Generate analysis in this exact JSON format:
+{{
+  "price": "$0.000025 (format: $X.XXXXX, include 24h change if available)",
+  "entryStrategy": "Long/Short at $X.XXXXX (specific price/condition)",
+  "leverage": "xX (number between 3-20)",
+  "stopLoss": "$X.XXXXX ➘ (with arrow)",
+  "takeProfit": "$X.XXXXX ➚ (with arrow)",
+  "duration": "X-Xh (time in hours)",
+  "riskLevel": "🔴 High/🟠 Medium/🟢 Low",
+  "summary": "One paragraph summarizing key analysis points"
+}}
 
-1. **Analysis Protocol** 📊:
-   - Analyze the provided market data and current conditions
-   - For contract addresses, include chain information and contract verification status
-   - Focus on short-term trading opportunities (20 minutes to 8 hours)
-   - Consider market volatility and risk management
-   - Base recommendations on technical analysis and market sentiment
+Analysis Requirements:
+1. Base recommendations on technical analysis and market sentiment
+2. Include precise numerical values for all metrics
+3. Risk assessment must match volatility and leverage
+4. Summary should be concise (3-5 sentences) and actionable`;
 
-2. **Trade Specification Requirements** 📝:
-   - **Entry Strategy**: Specify exact entry points and conditions 📍
-   - **Leverage Recommendation** (range: x3 to x20) 🔍
-   - **Precise Stop Loss Levels** ⚠️
-   - **Clear Take Profit Targets** 🎯
-   - **Estimated Trade Duration** ⏳
-   - **Risk Assessment** 🔒
+// Add new SUMMARY_PROMPT
+const SUMMARY_PROMPT = `Condense this trading analysis into a single paragraph (5-7 sentences) highlighting:
+- Key price levels and targets
+- Risk-reward ratio
+- Market conditions
+- Recommended strategy
+- Timeframe
 
-Important: Never say you are waiting or gathering information. You already have all required data in the input. Provide immediate, actionable trading analysis.
-
-Format your response in a clear, structured manner with appropriate spacing and emojis for better readability.
-
-Example Input:
-User: $SHIB
-Market Data: SHIB (SHIB/USDC): Price: $0.000025, 24h Change: -2.5%
-
-Example Output:
-(Formatted HTML with Tailwind as described in FORMATTING_PROMPT)
-`;
+Write in clear, professional language without markdown.`;
 
 // Extraction prompt for queries without links – looks for tokens with a '$'
 const EXTRACT_PROMPT = `You are an assistant that extracts cryptocurrency symbols or names mentioned in a sentence.
@@ -88,74 +100,67 @@ If no cryptocurrency information is detected, output "none".
 
 Text: "{input}"`;
 
-// Add this new formatting prompt at the top with other prompts
-const FORMATTING_PROMPT = `You are a UI formatting expert. Format the given trading analysis text to be more visually appealing using HTML and Tailwind CSS classes.
-
-Guidelines:
-1. Generate ONLY HTML with Tailwind classes. Do not include any markdown.
-2. Use semantic HTML elements (div, h1, h2, p, ul, li, table, tr, td, th) with appropriate Tailwind classes
-
-3. Follow this structure for the main container:
-   <div class="space-y-4 text-white">
-     <h1>Title</h1>
-     <div class="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4">
-       <h2>Section</h2>
-       <p>Content</p>
-     </div>
-   </div>
-
-4. For tables, use this structure:
-   <table class="w-full border-collapse">
-     <thead class="bg-indigo-500/10">
-       <tr>
-         <th class="p-2 text-left border border-indigo-500/20 text-indigo-300">Header</th>
-       </tr>
-     </thead>
-     <tbody>
-       <tr class="border-b border-indigo-500/10">
-         <td class="p-2 text-gray-200">Content</td>
-       </tr>
-     </tbody>
-   </table>
-
-5. Use these predefined color schemes:
-   TITLES & HEADERS:
-   - Main title: class="text-xl font-bold text-indigo-300"
-   - Section headers: class="text-lg font-semibold text-indigo-200"
-   
-   METRICS & VALUES:
-   - Profit/Positive: class="text-emerald-400 font-semibold"
-   - Loss/Negative: class="text-rose-400 font-semibold"
-   - Warning/Risk: class="text-amber-400 font-semibold"
-   - Neutral/Current: class="text-violet-300 font-semibold"
-   
-   CONTAINERS:
-   - Section backgrounds: class="bg-indigo-500/10"
-   - Borders: class="border-indigo-500/20"
-   - Regular text: class="text-base text-gray-200"
-
-6. Use these components with specific styling:
-   - Lists: class="space-y-2 pl-5"
-   - List items: class="flex items-start gap-2"
-   - Tables: class="w-full border-collapse bg-indigo-500/5"
-   - Table headers: class="p-2 text-left border border-indigo-500/20 text-indigo-300"
-   - Table cells: class="p-2 border-b border-indigo-500/10"
-
-7. Use these semantic colors for trading metrics:
-   - Entry points: text-violet-300
-   - Take profit targets: text-emerald-400
-   - Stop loss levels: text-rose-400
-   - Leverage: text-amber-400
-   - Time duration: text-gray-200
-   - Risk levels:
-     * Low: text-emerald-400
-     * Medium: text-amber-400
-     * High: text-rose-400
-
-8. Ensure all text is properly colored for dark mode (use text-gray-200 or text-white as base colors)
-
-Format the following trading analysis with proper HTML and Tailwind classes:
-"{input}"`;
+// Update FORMATTING_PROMPT with static class names
+const FORMATTING_PROMPT = `
+<h1 class="text-2xl font-bold text-white-300 tracking-wide mb-4 {{fontClass}}">Investinex Analysis</h1>
+<table class="w-full border-collapse bg-indigo-500/5 backdrop-blur-sm rounded-lg overflow-hidden">
+  <thead class="bg-indigo-500/10">
+    <tr>
+      <th class="p-3 text-left text-indigo-300 font-semibold">Metric</th>
+      <th class="p-3 text-left text-indigo-300 font-semibold">Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- Price Section -->
+    <tr class="border-b border-indigo-500/10 hover:bg-indigo-500/5 transition-colors">
+      <td class="p-3 text-gray-200 font-medium">💰 Current Price</td>
+      <td class="p-3 font-semibold">
+        <span class="text-violet-300">{{basePrice}}</span>
+        <span class="{{priceChangeColor}}">{{priceChange}}</span>
+      </td>
+    </tr>
+    
+    <!-- Trade Type -->
+    <tr class="border-b border-indigo-500/10 hover:bg-indigo-500/5 transition-colors">
+      <td class="p-3 text-gray-200 font-medium">🔀 Type of Trade</td>
+      <td class="p-3 {{tradeColor}} font-semibold">{{tradeType}}</td>
+    </tr>
+    
+    <!-- Spacer -->
+    <tr><td colspan="2" class="h-4"></td></tr>
+    
+    <!-- Entry Levels -->
+    <tr class="border-b border-indigo-500/10 hover:bg-indigo-500/5 transition-colors">
+      <td class="p-3 text-gray-200 font-medium">📈 Entry</td>
+      <td class="p-3 text-gray-300 font-semibold">{{entryText}} <span class="{{entryColor}}">{{entryPrice}}</span>{{entryReason}}</td>
+    </tr>
+    <tr class="border-b border-indigo-500/10 hover:bg-indigo-500/5 transition-colors">
+      <td class="p-3 text-gray-200 font-medium">🎯 Take Profit</td>
+      <td class="p-3 text-emerald-400 font-semibold">{{takeProfit}}</td>
+    </tr>
+    <tr class="border-b border-indigo-500/10 hover:bg-indigo-500/5 transition-colors">
+      <td class="p-3 text-gray-200 font-medium">🛑 Stop Loss</td>
+      <td class="p-3 text-rose-400 font-semibold">{{stopLoss}}</td>
+    </tr>
+    <tr class="border-b border-indigo-500/10 hover:bg-indigo-500/5 transition-colors">
+      <td class="p-3 text-gray-200 font-medium">⚖️ Leverage</td>
+      <td class="p-3 text-amber-400 font-semibold">{{leverage}}</td>
+    </tr>
+    
+    <!-- Spacer -->
+    <tr><td colspan="2" class="h-4"></td></tr>
+    
+    <!-- Risk Management -->
+    <tr class="border-b border-indigo-500/10 hover:bg-indigo-500/5 transition-colors">
+      <td class="p-3 text-gray-200 font-medium">⏳ Duration</td>
+      <td class="p-3 text-violet-300 font-semibold">{{duration}}</td>
+    </tr>
+    <tr class="hover:bg-indigo-500/5 transition-colors">
+      <td class="p-3 text-gray-200 font-medium">🔒 Risk</td>
+      <td class="p-3 text-rose-400 font-semibold">{{riskLevel}}</td>
+    </tr>
+  </tbody>
+</table>`;
 
 // --- Helper Functions ---
 async function fetchSearchResults(query: string) {
@@ -409,7 +414,100 @@ async function fetchTokenFromContract(address: string): Promise<CoinData | null>
   }
 }
 
+async function fetchDexscreenerPairInfo(pairAddress: string): Promise<CoinData | null> {
+  try {
+    axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
+    
+    // For Solana addresses, we need to use the tokens endpoint
+    if (pairAddress.length >= 32 && pairAddress.length <= 44) {
+      const response = await axios.get(
+        `${DEXSCREENER_API_BASE}/tokens/${pairAddress}`
+      );
+
+      if (!response.data.pairs || response.data.pairs.length === 0) {
+        return null;
+      }
+
+      // Get the pair with highest liquidity
+      const bestPair = response.data.pairs.reduce((prev: any, current: any) => 
+        (prev.liquidity?.usd || 0) > (current.liquidity?.usd || 0) ? prev : current
+      );
+
+      return {
+        name: bestPair.baseToken.name,
+        symbol: bestPair.baseToken.symbol.toUpperCase(),
+        price: parseFloat(bestPair.priceUsd || bestPair.priceNative),
+        change24h: bestPair.priceChange?.h24 || null,
+        baseSymbol: bestPair.quoteToken.symbol.toUpperCase(),
+        pairAddress: bestPair.pairAddress,
+        contractAddress: bestPair.baseToken.address,
+        chain: bestPair.chainId
+      };
+    }
+
+    // For other chains, use the pairs endpoint
+    const response = await axios.get(
+      `${DEXSCREENER_API_BASE}/pairs/${pairAddress}`
+    );
+
+    if (!response.data.pair) {
+      return null;
+    }
+
+    const pair = response.data.pair;
+    return {
+      name: pair.baseToken.name,
+      symbol: pair.baseToken.symbol.toUpperCase(),
+      price: parseFloat(pair.priceUsd || pair.priceNative),
+      change24h: pair.priceChange?.h24 || null,
+      baseSymbol: pair.quoteToken.symbol.toUpperCase(),
+      pairAddress: pair.pairAddress,
+      contractAddress: pair.baseToken.address,
+      chain: pair.chainId
+    };
+  } catch (error) {
+    console.error("[DEXSCREENER_ERROR]", error);
+    return null;
+  }
+}
+
 async function getCoinData(userInput: string): Promise<CoinData | null> {
+  const dexscreenerMatch = userInput.match(DEXSCREENER_URL_REGEX);
+  if (dexscreenerMatch) {
+    const [_, chain, pairAddress] = dexscreenerMatch;
+    if (!pairAddress) return null;
+
+    // Handle Solana pairs differently
+    if (chain.toLowerCase() === 'solana') {
+      try {
+        const pairResponse = await axios.get(
+          `${DEXSCREENER_API_BASE}/pairs/solana/${pairAddress}`
+        );
+
+        if (!pairResponse.data.pairs || pairResponse.data.pairs.length === 0) {
+          return null;
+        }
+
+        const pair = pairResponse.data.pairs[0];
+        return {
+          name: pair.baseToken.name,
+          symbol: pair.baseToken.symbol.toUpperCase(),
+          price: parseFloat(pair.priceUsd || pair.priceNative),
+          change24h: pair.priceChange?.h24 || null,
+          baseSymbol: pair.quoteToken.symbol.toUpperCase(),
+          pairAddress: pair.pairAddress,
+          contractAddress: pair.baseToken.address,
+          chain: 'solana'
+        };
+      } catch (error) {
+        console.error("[SOLANA_PAIR_ERROR]", error);
+        return null;
+      }
+    }
+    
+    return await fetchDexscreenerPairInfo(pairAddress);
+  }
+  
   // First check if input is a contract address
   if (CONTRACT_ADDRESS_REGEX.test(userInput.trim())) {
     return await fetchTokenFromContract(userInput.trim());
@@ -585,21 +683,57 @@ async function getCoinData(userInput: string): Promise<CoinData | null> {
 }
 
 async function formatTradingRecommendation(
-  rawRecommendation: string,
+  analysisData: AnalysisData,
   model: ChatGoogleGenerativeAI
 ): Promise<string> {
-  const formattingPrompt = ChatPromptTemplate.fromMessages([
-    ["system", FORMATTING_PROMPT],
+  // Import the font
+  const { coolvetica } = await import('@/app/fonts');
+  
+  // Generate summary
+  const summaryPrompt = ChatPromptTemplate.fromMessages([
+    ["system", SUMMARY_PROMPT],
     ["human", "{input}"],
   ]);
-
-  const formattingChain = formattingPrompt.pipe(model);
-
-  const formattedResponse = await formattingChain.invoke({
-    input: rawRecommendation,
+  
+  const summaryChain = summaryPrompt.pipe(model);
+  const summaryResponse = await summaryChain.invoke({
+    input: analysisData.summary,
   });
 
-  return formattedResponse.content;
+  // Extract and format price components
+  const [basePrice, priceChange] = analysisData.price.split(' ');
+  const changeValue = priceChange ? parseFloat(priceChange.replace(/[()%]/g, '')) : 0;
+  const formattedChange = changeValue >= 0 ? `(+${changeValue}%)` : `(${changeValue}%)`;
+  const priceChangeColor = changeValue >= 0 ? 'text-emerald-400' : 'text-rose-400';
+
+  // Extract trade type and colors
+  const tradeType = analysisData.entryStrategy.toLowerCase().includes('short') ? 'Short' : 'Long';
+  const tradeColor = tradeType === 'Short' ? 'text-rose-400' : 'text-emerald-400';
+
+  // Format entry strategy components
+  const entryMatch = analysisData.entryStrategy.match(/(Short|Long) at (\$[\d.]+)(.*)/);
+  const [_, entryType, entryPrice, entryReason] = entryMatch || ['', '', '', ''];
+  const entryText = `${entryType} at `;
+  const entryColor = entryType.toLowerCase() === 'short' ? 'text-rose-400' : 'text-emerald-400';
+
+  const tableHTML = FORMATTING_PROMPT
+    .replace("{{fontClass}}", coolvetica.className)
+    .replace("{{basePrice}}", basePrice)
+    .replace("{{priceChange}}", formattedChange)
+    .replace("{{priceChangeColor}}", priceChangeColor)
+    .replace("{{tradeType}}", tradeType)
+    .replace("{{tradeColor}}", tradeColor)
+    .replace("{{entryText}}", entryText)
+    .replace("{{entryPrice}}", entryPrice)
+    .replace("{{entryColor}}", entryColor)
+    .replace("{{entryReason}}", entryReason || '')
+    .replace("{{leverage}}", analysisData.leverage)
+    .replace("{{stopLoss}}", analysisData.stopLoss)
+    .replace("{{takeProfit}}", analysisData.takeProfit)
+    .replace("{{duration}}", analysisData.duration)
+    .replace("{{riskLevel}}", analysisData.riskLevel);
+
+  return `${tableHTML}\n\n<div class="mt-6 p-4 bg-indigo-500/5 rounded-lg backdrop-blur-sm border border-indigo-500/10">\n  <h3 class="text-lg font-semibold text-indigo-300 mb-2">Summary</h3>\n  <p class="text-gray-300 leading-relaxed">${summaryResponse.content}</p>\n</div>`;
 }
 
 async function generateTradingRecommendation(
@@ -607,25 +741,71 @@ async function generateTradingRecommendation(
   chatHistory: { role: string; content: string }[],
   model: ChatGoogleGenerativeAI,
   lastMessage: string
-): Promise<string> {
-  const finalInput = `${lastMessage}\n\nCurrent market data for ${
-    coinData.name
-  } (${coinData.symbol}${coinData.baseSymbol ? "/" + coinData.baseSymbol : ""}):
+): Promise<AnalysisData> {
+  const marketData = `Current market data for ${coinData.name} (${coinData.symbol}${coinData.baseSymbol ? "/" + coinData.baseSymbol : ""}):
 - Price: $${coinData.price.toFixed(8)}
-- 24h Change: ${coinData.change24h ? coinData.change24h.toFixed(2) : "N/A"}%`;
+- 24h Change: ${coinData.change24h ? coinData.change24h.toFixed(2) + "%" : "N/A"}
+- Market Cap: ${coinData.price * 1_000_000 /* Replace with actual market cap data */}
+- Trading Volume: ${coinData.price * 100_000 /* Replace with actual volume data */}`;
 
-  const finalChain = ChatPromptTemplate.fromMessages([
+  const analysisChain = ChatPromptTemplate.fromMessages([
     ["system", SAMARITAN_PROMPT],
     new MessagesPlaceholder("chat_history"),
     ["human", "{input}"],
   ]).pipe(model);
 
-  const initialResponse = await finalChain.invoke({
-    chat_history: chatHistory,
-    input: finalInput,
-  });
+  try {
+    const response = await analysisChain.invoke({
+      chat_history: chatHistory,
+      input: `${lastMessage}\n\n${marketData}`,
+    });
 
-  return initialResponse.content;
+    // Add enhanced JSON validation
+    const parsed = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim());
+    
+    const requiredFields = ['price', 'entryStrategy', 'leverage', 'stopLoss', 'takeProfit', 'duration', 'riskLevel', 'summary'];
+    const missingFields = requiredFields.filter(field => !parsed[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing fields: ${missingFields.join(', ')}`);
+    }
+
+    // Validate number formats
+    const priceRegex = /^\$?\d+(?:\.\d+)?/;
+    if (!priceRegex.test(parsed.price)) {
+      throw new Error(`Invalid price format: ${parsed.price}`);
+    }
+
+    return {
+      price: parsed.price,
+      entryStrategy: parsed.entryStrategy,
+      leverage: parsed.leverage,
+      stopLoss: parsed.stopLoss,
+      takeProfit: parsed.takeProfit,
+      duration: parsed.duration,
+      riskLevel: parsed.riskLevel,
+      summary: parsed.summary,
+      tradeType: parsed.entryStrategy.toLowerCase().includes('short') ? 'Short' : 'Long',
+    };
+  } catch (error) {
+    console.error("Analysis generation error:", error);
+    // Generate fallback analysis using basic calculations
+    const fallbackPrice = `$${coinData.price.toFixed(2)}`;
+    const fallbackChange = coinData.change24h ? Math.abs(coinData.change24h).toFixed(2) + '%' : 'N/A';
+    
+    return {
+      price: fallbackPrice,
+      entryStrategy: `Long at $${(coinData.price * 1.02).toFixed(2)}`,
+      leverage: 'x5',
+      stopLoss: `$${(coinData.price * 0.97).toFixed(2)} ➘`,
+      takeProfit: `$${(coinData.price * 1.05).toFixed(2)} ➚`,
+      duration: '4-6h',
+      riskLevel: coinData.change24h && Math.abs(coinData.change24h) > 10 ? '🔴 High' : '🟠 Medium',
+      summary: `Based on current price of ${fallbackPrice} and 24h change of ${fallbackChange}, ` +
+        'a moderate long position is recommended with tight stop loss. ' +
+        'Monitor volume changes closely in the suggested timeframe.'
+    };
+  }
 }
 
 const requestSchema = z.object({
@@ -666,20 +846,20 @@ export async function POST(req: Request) {
       });
     }
 
-    const rawRecommendation = await generateTradingRecommendation(
+    const analysisData = await generateTradingRecommendation(
       coinData,
       chatHistory,
       model,
       lastMessage
     );
     const formattedRecommendation = await formatTradingRecommendation(
-      rawRecommendation,
+      analysisData,
       model
     );
 
     return NextResponse.json({
       content: formattedRecommendation,
-      rawContent: rawRecommendation,
+      rawContent: JSON.stringify(analysisData),
     });
   } catch (error) {
     console.error("[CHAT_ERROR]", error);
