@@ -164,7 +164,7 @@ const FORMATTING_PROMPT = `
     </tr>
     <tr class="hover:bg-indigo-500/5 transition-colors">
       <td class="p-3 text-gray-200 font-medium">🔒 Risk</td>
-      <td class="p-3 text-rose-400 font-semibold">{{riskLevel}}</td>
+      <td class="p-3 {{riskColor}} font-semibold">{{riskLevel}}</td>
     </tr>
   </tbody>
 </table>`;
@@ -596,7 +596,7 @@ async function formatTradingRecommendation(
     .replace("{{coinName}}", coinData.name)
     .replace("{{basePrice}}", analysisData.price)
     .replace("{{priceChange}}", analysisData.price.includes('(') ? '' : ` (${analysisData.price.split(' ')[1]})`)
-    .replace("{{priceChangeColor}}", analysisData.price.includes('+') ? 'text-emerald-400' : 'text-rose-400')
+    .replace("{{priceChangeColor}}", analysisData.priceChangeColor || 'text-gray-400')
     .replace("{{tradeType}}", analysisData.tradeType || 'Long')
     .replace("{{tradeColor}}", analysisData.tradeType === 'Short' ? 'text-rose-400' : 'text-emerald-400')
     .replace("{{entryText}}", analysisData.entryStrategy.split(' at ')[0] + ' at ')
@@ -607,7 +607,9 @@ async function formatTradingRecommendation(
     .replace("{{takeProfit}}", analysisData.takeProfit)
     .replace("{{leverage}}", analysisData.leverage)
     .replace("{{duration}}", analysisData.duration)
-    .replace("{{riskLevel}}", analysisData.riskLevel);
+    .replace("{{riskLevel}}", analysisData.riskLevel)
+    .replace("{{riskColor}}", analysisData.riskLevel.includes('🟢') ? 'text-green-400' : 
+                          analysisData.riskLevel.includes('🟠') ? 'text-yellow-400' : 'text-red-400');
 
   // Generate summary
   const summaryPrompt = ChatPromptTemplate.fromMessages([
@@ -633,8 +635,7 @@ async function generateTradingRecommendation(
   const marketData = `Current market data for ${coinData.name} (${coinData.symbol}${
     coinData.baseSymbol ? "/" + coinData.baseSymbol : ""
   }):
-- Price: $${coinData.price.toFixed(8)}
-- 24h Change: ${coinData.change24h ? coinData.change24h.toFixed(2) + "%" : "N/A"}`;
+- Price: $${coinData.price.toFixed(8)}${coinData.change24h ? ` (${coinData.change24h > 0 ? '+' : ''}${coinData.change24h.toFixed(2)}%)` : ''}`;
 
   const analysisChain = ChatPromptTemplate.fromMessages([
     ["system", SAMARITAN_PROMPT],
@@ -648,7 +649,7 @@ async function generateTradingRecommendation(
 
     const parsed = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim());
     
-    return {
+    const variables = {
       price: parsed.price || `$${coinData.price.toFixed(8)}`,
       entryStrategy: parsed.entryStrategy || `Long at $${coinData.price.toFixed(8)}`,
       leverage: parsed.leverage || "x3",
@@ -656,9 +657,17 @@ async function generateTradingRecommendation(
       takeProfit: parsed.takeProfit || `$${(coinData.price * 1.05).toFixed(8)} ➚`,
       duration: parsed.duration || "4-6h",
       riskLevel: parsed.riskLevel || "🟠 Medium",
-      summary: parsed.summary || `Analysis for ${coinData.symbol} at $${coinData.price.toFixed(8)}`,
+      summary: parsed.summary || `Analysis for ${coinData.symbol} at $${coinData.price.toFixed(8)}${coinData.change24h ? ` (${coinData.change24h > 0 ? '+' : ''}${coinData.change24h.toFixed(2)}%)` : ''}`,
       tradeType: parsed.entryStrategy?.toLowerCase().includes('short') ? 'Short' : 'Long',
+      priceChange: coinData.change24h ? 
+        `${coinData.change24h > 0 ? '+' : ''}${coinData.change24h.toFixed(2)}%` : '',
+      priceChangeColor: coinData.change24h ? 
+        (coinData.change24h > 0 ? 'text-green-400' : 'text-red-400') : 'text-gray-400',
+      riskColor: parsed.riskLevel.includes('🟢') ? 'text-green-400' : 
+                parsed.riskLevel.includes('🟠') ? 'text-yellow-400' : 'text-red-400',
     };
+
+    return variables;
   } catch (error) {
     console.error("Analysis generation error:", error);
     return generateFallbackAnalysis(coinData);
