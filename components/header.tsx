@@ -98,7 +98,15 @@ export function Header() {
                           </li>
                           <li className="flex items-center gap-2 hover:text-blue-400 transition-colors">
                             <span className="h-1.5 w-1.5 rounded-full bg-blue-500/60" />
-                            Basic trading recommendations
+                            Wallet tracker feature
+                          </li>
+                          <li className="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500/60" />
+                            Trending coins feature
+                          </li>
+                          <li className="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500/60" />
+                            $INTX token launch
                           </li>
                           <li className="flex items-center gap-2 hover:text-blue-400 transition-colors">
                             <span className="h-1.5 w-1.5 rounded-full bg-blue-500/60" />

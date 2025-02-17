@@ -642,11 +642,13 @@ async function generateTradingRecommendation(
 
   const analysisChain = ChatPromptTemplate.fromMessages([
     ["system", SAMARITAN_PROMPT],
+    new MessagesPlaceholder("chat_history"),
     ["human", "{input}"],
   ]).pipe(model);
 
   try {
     const response = await analysisChain.invoke({
+      chat_history: chatHistory,
       input: `${lastMessage}\n\n${marketData}`,
     });
 
@@ -698,29 +700,37 @@ export async function POST(req: Request) {
 
     const model = new ChatGoogleGenerativeAI({
       modelName: "gemini-2.0-flash-exp",
-      maxRetries: 1, // Reduced from 2
-      temperature: 0.7, // Slightly reduced for faster responses
+      maxRetries: 1,
+      temperature: 0.7,
       apiKey: process.env.GOOGLE_API_KEY,
-      maxOutputTokens: 500, // Limit output size
+      maxOutputTokens: 500,
     });
 
+    // Create a proper chat history using all messages except the last one
     const chatHistory = messages
       .slice(0, -1)
-      .filter((msg) => msg[0] !== "system")
-      .map((msg) => ({ role: msg[0], content: msg[1] }));
-    console.log("[POST] Chat history processed:", chatHistory);
+      .map((msg) => ({
+        role: msg[0] === "user" ? "human" : "assistant",
+        content: msg[1]
+      }));
 
+    // Get the last message (current user input)
     const lastMessage = messages[messages.length - 1][1];
-    console.log("[POST] Processing last message:", lastMessage);
     
-    const coinData = await getCoinData(lastMessage);
-    console.log("[POST] Coin data retrieved:", coinData);
+    // Create the chat prompt template with history
+    const chatPrompt = ChatPromptTemplate.fromMessages([
+      SystemMessagePromptTemplate.fromTemplate(SAMARITAN_PROMPT),
+      new MessagesPlaceholder("chat_history"),
+      HumanMessagePromptTemplate.fromTemplate("{input}")
+    ]);
 
+    const chain = chatPrompt.pipe(model);
+
+    const coinData = await getCoinData(lastMessage);
+    
     if (!coinData) {
-      console.log("[POST] No coin data found");
       return NextResponse.json({
-        content:
-          "I couldn't detect a valid cryptocurrency. Please provide a valid CoinGecko or DexScreener link, a contract address (CA), or use the '$' prefix (e.g., '$BTC').",
+        content: "I couldn't detect a valid cryptocurrency. Please provide a valid CoinGecko or DexScreener link, a contract address (CA), or use the '$' prefix (e.g., '$BTC').",
       });
     }
 
@@ -730,6 +740,7 @@ export async function POST(req: Request) {
       model,
       lastMessage
     );
+
     const formattedRecommendation = await formatTradingRecommendation(
       analysisData,
       model,

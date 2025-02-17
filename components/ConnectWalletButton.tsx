@@ -222,7 +222,7 @@ export default function ConnectWalletButton() {
     return (
       <Button
         onClick={handleConnectWallet}
-        variant="gradientRed"
+        variant="gradientBlue"
         size="lg"
         className="w-full rounded-full font-medium text-base tracking-wide"
       >
@@ -236,7 +236,7 @@ export default function ConnectWalletButton() {
     return (
       <Button
         onClick={handleDisconnectWallet}
-        variant="gradientPurple"
+        variant="gradientGreen"
         size="lg"
         className="w-full rounded-full font-medium text-base tracking-wide"
         disabled={isChecking}
@@ -250,7 +250,7 @@ export default function ConnectWalletButton() {
   return (
     <Button
       onClick={handleConnectWallet}
-      variant="gradientRed"
+      variant="gradientBlue"
       size="lg"
       className="w-full rounded-full font-medium text-base tracking-wide"
     >

@@ -23,6 +23,8 @@ const buttonVariants = cva(
         gradientPurple: "text-white bg-gradient-to-t from-purple-600 to-purple-400 shadow-[0_4px_20px_-2px_rgba(147,51,234,0.6)] hover:shadow-[0_4px_25px_0px_rgba(147,51,234,0.7)] active:shadow-[0_4px_15px_-2px_rgba(147,51,234,0.5)] border-none",
         gradientRed: "text-white bg-gradient-to-t from-red-600 to-red-400 shadow-[0_4px_20px_-2px_rgba(220,38,38,0.6)] hover:shadow-[0_4px_25px_0px_rgba(220,38,38,0.7)] active:shadow-[0_4px_15px_-2px_rgba(220,38,38,0.5)] border-none",
         gradientWhite: "text-black bg-gradient-to-t from-gray-50 to-white shadow-[0_4px_20px_-2px_rgba(255,255,255,0.3)] hover:shadow-[0_4px_25px_0px_rgba(255,255,255,0.4)] active:shadow-[0_4px_15px_-2px_rgba(255,255,255,0.25)] border-none",
+        gradientBlue: "text-white bg-gradient-to-t from-blue-600 to-blue-400 shadow-[0_4px_20px_-2px_rgba(59,130,246,0.6)] hover:shadow-[0_4px_25px_0px_rgba(59,130,246,0.7)] active:shadow-[0_4px_15px_-2px_rgba(59,130,246,0.5)] border-none",
+        gradientGreen: "text-white bg-gradient-to-t from-green-600 to-green-400 shadow-[0_4px_20px_-2px_rgba(20,167,62,0.6)] hover:shadow-[0_4px_25px_0px_rgba(20,167,62,0.7)] active:shadow-[0_4px_15px_-2px_rgba(20,167,62,0.5)] border-none",
       },
       size: {
         default: "h-9 px-4 py-2",

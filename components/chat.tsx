@@ -23,6 +23,7 @@ import parse from 'html-react-parser';
 import { toast } from "sonner";
 
 interface Message {
+  id: string;
   role: "user" | "assistant";
   content: string;
   rawContent?: string;
@@ -194,7 +195,13 @@ export function Chat() {
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
     
-    const userMessage = { role: "user" as const, content: input };
+    const messageId = crypto.randomUUID();
+    const userMessage = { 
+      id: messageId,
+      role: "user" as const, 
+      content: input 
+    };
+    
     setMessages(prev => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
@@ -202,10 +209,16 @@ export function Chat() {
     setDetectedCrypto(null);
 
     try {
+      // Convert messages to the format expected by the API
+      const messageHistory = messages.map(msg => [msg.role, msg.content]);
+      messageHistory.push(["user", input]);
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [["user", input]] })
+        body: JSON.stringify({ 
+          messages: messageHistory
+        })
       });
 
       if (!response.ok) throw new Error("Failed to get response");
@@ -217,6 +230,7 @@ export function Chat() {
       }
 
       setMessages(prev => [...prev, { 
+        id: crypto.randomUUID(),
         role: "assistant", 
         content: data.content,
         rawContent: data.rawContent,
@@ -225,6 +239,7 @@ export function Chat() {
     } catch (error) {
       console.error("Chat error:", error);
       setMessages(prev => [...prev, { 
+        id: crypto.randomUUID(),
         role: "assistant", 
         content: "Sorry, I encountered an error. Please try again.",
         isComplete: true

@@ -263,9 +263,10 @@ export default function Home() {
       <footer className="w-full py-6 border-t border-white/10">
         <div className="container px-8">
           <div className="flex items-center justify-between">
-            <p className="text-gray-400 text-sm">
-              Contact Address - Coming Soon
-            </p>
+            <div className="text-gray-400 text-sm">
+              <p>© 2025 Investinex. All rights reserved.</p>
+              <p className="mt-2">For informational purposes only. This is not financial advice.</p>
+            </div>
             <div className="flex items-center gap-6">
               <a
                 href="https://github.com/rayjaywolf/investinex"
