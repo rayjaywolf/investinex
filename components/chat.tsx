@@ -137,13 +137,25 @@ const MessageContent = ({ content }: { content: string }) => {
   );
 };
 
+const LOADING_STEPS = [
+  "Initializing analysis...",
+  "Detecting cryptocurrency...",
+  "Fetching market data...",
+  "Analyzing price patterns...",
+  "Calculating risk metrics...",
+  "Generating trading strategy...",
+  "Finalizing recommendations..."
+];
+
 export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastMessage = messages[messages.length - 1];
   const searchParams = useSearchParams();
+  const [detectedCrypto, setDetectedCrypto] = useState<string | null>(null);
 
   useEffect(() => {
     const message = searchParams.get('message');
@@ -151,6 +163,15 @@ export function Chat() {
       setInput(message);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (isLoading) {
+      const interval = setInterval(() => {
+        setLoadingStep(prev => (prev + 1) % LOADING_STEPS.length);
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [isLoading]);
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -172,57 +193,45 @@ export function Chat() {
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = {
-      role: "user",
-      content: input,
-      isComplete: true,
-    };
-    setMessages((prev) => [...prev, userMessage]);
+    
+    const userMessage = { role: "user" as const, content: input };
+    setMessages(prev => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+    setLoadingStep(0);
+    setDetectedCrypto(null);
 
     try {
-      // Create a context string from the last few messages
-      const contextMessages = messages.slice(-3).map(msg => msg.content);
-      const currentMessage = input;
-      const messageWithContext = [...contextMessages, currentMessage].join('\n');
-
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            ...messages.map((msg) => [msg.role, msg.content]),
-            ["human", messageWithContext],
-          ],
-        }),
+        body: JSON.stringify({ messages: [["user", input]] })
       });
 
-      if (!response.ok) throw new Error("Failed to send message");
-
+      if (!response.ok) throw new Error("Failed to get response");
+      
       const data = await response.json();
       
-      const tradingData = parseTradingRecommendation(messageWithContext + '\n' + data.rawContent) || 
-                         parseTradingRecommendation(data.rawContent) ||
-                         undefined;
+      if (data.coinData?.name) {
+        setDetectedCrypto(data.coinData.name);
+      }
 
-      // Set the message as complete immediately
-      const assistantMessage: Message = {
-        role: "assistant",
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
         content: data.content,
         rawContent: data.rawContent,
-        isComplete: true, // Changed from false to true
-        tradingData,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      // Remove the setTimeout since we don't need the typewriter effect
-      // The message is already complete
+        isComplete: true
+      }]);
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("Chat error:", error);
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: "Sorry, I encountered an error. Please try again.",
+        isComplete: true
+      }]);
     } finally {
       setIsLoading(false);
+      setDetectedCrypto(null);
     }
   };
 
@@ -473,7 +482,7 @@ export function Chat() {
                       {message.role === "assistant" ? (
                         <>
                           <MessageContent content={message.content} />
-                          {!message.isComplete && (
+                          {message.isComplete === false && (
                             <div className="mt-1 h-4 w-4">
                               <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                             </div>
@@ -531,26 +540,27 @@ export function Chat() {
               ))
             )}
             {isLoading && (
-              <div className="flex items-start gap-3">
-                <Avatar className="h-8 w-8 bg-cyan-500/10 text-cyan-500 ring-2 ring-cyan-500/20">
-                  <AvatarImage src="/avatar.png" alt="Samaritan" />
-                  <AvatarFallback>NEX</AvatarFallback>
+              <div className="flex items-start gap-3 p-4">
+                <Avatar className="h-8 w-8 bg-blue-500/10 text-blue-500 ring-2 ring-blue-500/20">
+                  <AvatarImage src="/avatar.png" alt="Investinex" />
+                  <AvatarFallback>IN</AvatarFallback>
                 </Avatar>
-                <div className="flex max-w-[80%] items-center gap-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 px-3 py-2 shadow-[0_0_10px_rgba(0,255,255,0.1)]">
-                  <div className="flex space-x-2">
-                    <div
-                      className="h-2 w-2 animate-bounce rounded-full bg-cyan-500/40"
-                      style={{ animationDelay: "0ms" }}
-                    />
-                    <div
-                      className="h-2 w-2 animate-bounce rounded-full bg-cyan-500/40"
-                      style={{ animationDelay: "150ms" }}
-                    />
-                    <div
-                      className="h-2 w-2 animate-bounce rounded-full bg-cyan-500/40"
-                      style={{ animationDelay: "300ms" }}
-                    />
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3 bg-gray-800/50 rounded-2xl px-4 py-2">
+                    <div className="flex space-x-2">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-100" />
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-200" />
+                    </div>
+                    <span className="text-gray-400 text-sm">
+                      {LOADING_STEPS[loadingStep]}
+                    </span>
                   </div>
+                  {detectedCrypto && (
+                    <div className="text-sm text-blue-400 ml-2">
+                      Crypto detected: {detectedCrypto}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

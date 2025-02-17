@@ -739,6 +739,10 @@ export async function POST(req: Request) {
     return NextResponse.json({
       content: formattedRecommendation,
       rawContent: JSON.stringify(analysisData),
+      coinData: coinData ? {
+        name: coinData.name,
+        symbol: coinData.symbol
+      } : null
     });
   } catch (error) {
     console.error("[CHAT_ERROR]", error);
