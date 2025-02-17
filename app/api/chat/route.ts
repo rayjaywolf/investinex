@@ -39,6 +39,7 @@ interface CoinData {
   pairAddress?: string;
   contractAddress?: string;
   chain?: string;
+  imageUrl?: string;
 }
 
 // Add new interface for analysis data
@@ -102,7 +103,13 @@ Text: "{input}"`;
 
 // Update FORMATTING_PROMPT with static class names
 const FORMATTING_PROMPT = `
-<h1 class="text-2xl font-bold text-white-300 tracking-wide mb-4 {{fontClass}}">Investinex Analysis</h1>
+<div class="flex items-center gap-4 mb-6">
+  {{coinImage}}
+  <h1 class="text-2xl font-bold tracking-wide {{fontClass}}">
+    <span class="text-amber-400">{{coinName}}</span> 
+    <span class="text-gray-200">Analysis</span>
+  </h1>
+</div>
 <table class="w-full border-collapse bg-indigo-500/5 backdrop-blur-sm rounded-lg overflow-hidden">
   <thead class="bg-indigo-500/10">
     <tr>
@@ -204,9 +211,13 @@ async function fetchCoinGeckoPrice(coinId: string): Promise<CoinData | null> {
     const searchResponse = await axios.get(
       `${COINGECKO_API_BASE}/search?query=${coinId}`
     );
-    console.log("[COINGECKO_SEARCH] Search response:", searchResponse.data.coins?.[0]);
+    
+    // Find exact match in search results
+    const coinMatch = searchResponse.data.coins.find((coin: any) => 
+      coin.symbol.toLowerCase() === coinId.toLowerCase() || 
+      coin.id.toLowerCase() === coinId.toLowerCase()
+    );
 
-    const coinMatch = searchResponse.data.coins?.[0];
     if (!coinMatch) {
       console.log("[COINGECKO_SEARCH] No coin match found");
       return null;
@@ -216,13 +227,16 @@ async function fetchCoinGeckoPrice(coinId: string): Promise<CoinData | null> {
     const priceResponse = await axios.get(
       `${COINGECKO_API_BASE}/simple/price?ids=${coinMatch.id}&vs_currencies=usd&include_24hr_change=true`
     );
-    console.log("[COINGECKO_PRICE] Price response:", priceResponse.data[coinMatch.id]);
 
     if (priceResponse.data[coinMatch.id]) {
       const data = priceResponse.data[coinMatch.id];
+      
+      // Add null checks for image
+      const imageUrl = coinMatch.large || coinMatch.thumb || coinMatch.small || 
+                      `https://assets.coingecko.com/coins/images/${coinMatch.id}/large/${coinMatch.id}.png`;
 
       try {
-        await trackCoinSearch(coinMatch.name, coinMatch.symbol);
+        await trackCoinSearch(coinMatch.id, coinMatch.symbol);
       } catch (error) {
         console.error("[SEARCH_TRACKING_ERROR]:", error);
       }
@@ -232,6 +246,7 @@ async function fetchCoinGeckoPrice(coinId: string): Promise<CoinData | null> {
         symbol: coinMatch.symbol.toUpperCase(),
         price: data.usd,
         change24h: data.usd_24h_change ?? null,
+        imageUrl: imageUrl,
       };
     }
     return null;
@@ -310,6 +325,7 @@ async function fetchDexscreenerPrice(
       change24h: bestPair.priceChange.h24,
       baseSymbol: bestPair.quoteToken.symbol.toUpperCase(),
       pairAddress: bestPair.pairAddress,
+      imageUrl: bestPair.baseToken.logoURI || `https://cdn.dexscreener.com/blockchain/${bestPair.chainId}/logo.png`
     };
   } catch (error) {
     console.error("[DEXSCREENER_ERROR]", error);
@@ -373,6 +389,7 @@ async function fetchTokenFromContract(address: string): Promise<CoinData | null>
         chain: bestPair.chainId,
         baseSymbol: bestPair.quoteToken.symbol,
         pairAddress: bestPair.pairAddress,
+        imageUrl: bestPair.info?.imageUrl || bestPair.baseToken.logoURI || `https://cdn.dexscreener.com/blockchain/${bestPair.chainId}/logo.png`
       };
     }
 
@@ -412,6 +429,7 @@ async function fetchTokenFromContract(address: string): Promise<CoinData | null>
             change24h: coinGeckoData?.change24h || null,
             contractAddress: address,
             chain: chain,
+            imageUrl: coinGeckoData?.imageUrl,
           };
         }
       } catch (error) {
@@ -448,7 +466,8 @@ async function fetchDexscreenerPairInfo(chain: string, pairAddress: string): Pro
         baseSymbol: pair.quoteToken.symbol.toUpperCase(),
         pairAddress: pair.pairAddress,
         contractAddress: pair.baseToken.address,
-        chain: pair.chainId
+        chain: pair.chainId,
+        imageUrl: pair.info?.imageUrl || pair.baseToken.logoURI || `https://cdn.dexscreener.com/blockchain/${pair.chainId}/logo.png`
       };
     }
 
@@ -473,7 +492,8 @@ async function fetchDexscreenerPairInfo(chain: string, pairAddress: string): Pro
           baseSymbol: bestPair.quoteToken.symbol.toUpperCase(),
           pairAddress: bestPair.pairAddress,
           contractAddress: bestPair.baseToken.address,
-          chain: bestPair.chainId
+          chain: bestPair.chainId,
+          imageUrl: bestPair.info?.imageUrl || bestPair.baseToken.logoURI || `https://cdn.dexscreener.com/blockchain/${bestPair.chainId}/logo.png`
         };
       }
     }
@@ -560,11 +580,35 @@ async function getCoinData(userInput: string): Promise<CoinData | null> {
 
 async function formatTradingRecommendation(
   analysisData: AnalysisData,
-  model: ChatGoogleGenerativeAI
+  model: ChatGoogleGenerativeAI,
+  coinData: CoinData
 ): Promise<string> {
-  // Import the font
   const { coolvetica } = await import('@/app/fonts');
   
+  // Generate image HTML
+  const coinImageHtml = coinData.imageUrl 
+    ? `<img src="${coinData.imageUrl}" alt="${coinData.symbol}" class="w-12 h-12 rounded-full" />`
+    : `<div class="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center text-lg font-semibold text-amber-400">${coinData.symbol}</div>`;
+
+  const tableHTML = FORMATTING_PROMPT
+    .replace("{{fontClass}}", coolvetica.className)
+    .replace("{{coinImage}}", coinImageHtml)
+    .replace("{{coinName}}", coinData.name)
+    .replace("{{basePrice}}", analysisData.price)
+    .replace("{{priceChange}}", analysisData.price.includes('(') ? '' : ` (${analysisData.price.split(' ')[1]})`)
+    .replace("{{priceChangeColor}}", analysisData.price.includes('+') ? 'text-emerald-400' : 'text-rose-400')
+    .replace("{{tradeType}}", analysisData.tradeType || 'Long')
+    .replace("{{tradeColor}}", analysisData.tradeType === 'Short' ? 'text-rose-400' : 'text-emerald-400')
+    .replace("{{entryText}}", analysisData.entryStrategy.split(' at ')[0] + ' at ')
+    .replace("{{entryPrice}}", analysisData.entryStrategy.split(' at ')[1])
+    .replace("{{entryColor}}", analysisData.tradeType === 'Short' ? 'text-rose-400' : 'text-emerald-400')
+    .replace("{{entryReason}}", '')
+    .replace("{{stopLoss}}", analysisData.stopLoss)
+    .replace("{{takeProfit}}", analysisData.takeProfit)
+    .replace("{{leverage}}", analysisData.leverage)
+    .replace("{{duration}}", analysisData.duration)
+    .replace("{{riskLevel}}", analysisData.riskLevel);
+
   // Generate summary
   const summaryPrompt = ChatPromptTemplate.fromMessages([
     ["system", SUMMARY_PROMPT],
@@ -575,39 +619,6 @@ async function formatTradingRecommendation(
   const summaryResponse = await summaryChain.invoke({
     input: analysisData.summary,
   });
-
-  // Extract and format price components
-  const [basePrice, priceChange] = analysisData.price.split(' ');
-  const changeValue = priceChange ? parseFloat(priceChange.replace(/[()%]/g, '')) : 0;
-  const formattedChange = changeValue >= 0 ? `(+${changeValue}%)` : `(${changeValue}%)`;
-  const priceChangeColor = changeValue >= 0 ? 'text-emerald-400' : 'text-rose-400';
-
-  // Extract trade type and colors
-  const tradeType = analysisData.entryStrategy.toLowerCase().includes('short') ? 'Short' : 'Long';
-  const tradeColor = tradeType === 'Short' ? 'text-rose-400' : 'text-emerald-400';
-
-  // Format entry strategy components
-  const entryMatch = analysisData.entryStrategy.match(/(Short|Long) at (\$[\d.]+)(.*)/);
-  const [_, entryType, entryPrice, entryReason] = entryMatch || ['', '', '', ''];
-  const entryText = `${entryType} at `;
-  const entryColor = entryType.toLowerCase() === 'short' ? 'text-white-400' : 'text-white-400';
-
-  const tableHTML = FORMATTING_PROMPT
-    .replace("{{fontClass}}", coolvetica.className)
-    .replace("{{basePrice}}", basePrice)
-    .replace("{{priceChange}}", formattedChange)
-    .replace("{{priceChangeColor}}", priceChangeColor)
-    .replace("{{tradeType}}", tradeType)
-    .replace("{{tradeColor}}", tradeColor)
-    .replace("{{entryText}}", entryText)
-    .replace("{{entryPrice}}", entryPrice)
-    .replace("{{entryColor}}", entryColor)
-    .replace("{{entryReason}}", entryReason || '')
-    .replace("{{leverage}}", analysisData.leverage)
-    .replace("{{stopLoss}}", analysisData.stopLoss)
-    .replace("{{takeProfit}}", analysisData.takeProfit)
-    .replace("{{duration}}", analysisData.duration)
-    .replace("{{riskLevel}}", analysisData.riskLevel);
 
   return `${tableHTML}\n\n<div class="mt-6 p-4 bg-indigo-500/5 rounded-lg backdrop-blur-sm border border-indigo-500/10">\n  <h3 class="text-lg font-semibold text-indigo-300 mb-2">Summary</h3>\n  <p class="text-gray-300 leading-relaxed">${summaryResponse.content}</p>\n</div>`;
 }
@@ -709,7 +720,8 @@ export async function POST(req: Request) {
     );
     const formattedRecommendation = await formatTradingRecommendation(
       analysisData,
-      model
+      model,
+      coinData
     );
 
     return NextResponse.json({
