@@ -2,48 +2,27 @@ import { prisma } from "@/lib/db";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowUp, ArrowDown, Search } from "lucide-react";
-import axios from "axios";
 import { formatDistanceToNow } from "date-fns";
 import { Header } from "@/components/header";
 import Link from "next/link";
-
-async function getCoinGeckoData(coinName: string) {
-  try {
-    const searchResponse = await axios.get(
-      `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(coinName)}`
-    );
-    
-    const coinMatch = searchResponse.data.coins?.[0];
-    return coinMatch ? { 
-      thumb: coinMatch.large,
-      large: coinMatch.large 
-    } : null;
-  } catch (error) {
-    console.error("[COINGECKO_ERROR]", error);
-    return null;
-  }
-}
 
 async function getTopSearchedCoins() {
   const coins = await prisma.searchedCoin.findMany({
     orderBy: {
       count: 'desc'
     },
-    take: 20
+    take: 20,
+    select: {
+      id: true,
+      name: true,
+      symbol: true,
+      count: true,
+      logo: true,
+      updatedAt: true
+    }
   });
 
-  // Fetch logos for all coins (in parallel)
-  const coinsWithLogos = await Promise.all(
-    coins.map(async (coin) => {
-      const geckoData = await getCoinGeckoData(coin.name);
-      return {
-        ...coin,
-        logo: geckoData?.thumb || null
-      };
-    })
-  );
-
-  return coinsWithLogos;
+  return coins;
 }
 
 export default async function TrendingPage() {
@@ -131,7 +110,7 @@ export default async function TrendingPage() {
                     <div className="flex items-center gap-1 bg-blue-500/10 px-2 py-1 rounded-lg">
                       <Search className="w-3 h-3 text-blue-400" />
                       <span className="text-sm font-medium text-blue-400">
-                        {(coin.count * 7).toLocaleString()}
+                        {(coin.count).toLocaleString()}
                       </span>
                     </div>
                   </div>

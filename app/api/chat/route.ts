@@ -212,7 +212,6 @@ async function fetchCoinGeckoPrice(coinId: string): Promise<CoinData | null> {
       `${COINGECKO_API_BASE}/search?query=${coinId}`
     );
     
-    // Find exact match in search results
     const coinMatch = searchResponse.data.coins.find((coin: any) => 
       coin.symbol.toLowerCase() === coinId.toLowerCase() || 
       coin.id.toLowerCase() === coinId.toLowerCase()
@@ -231,12 +230,16 @@ async function fetchCoinGeckoPrice(coinId: string): Promise<CoinData | null> {
     if (priceResponse.data[coinMatch.id]) {
       const data = priceResponse.data[coinMatch.id];
       
-      // Add null checks for image
       const imageUrl = coinMatch.large || coinMatch.thumb || coinMatch.small || 
                       `https://assets.coingecko.com/coins/images/${coinMatch.id}/large/${coinMatch.id}.png`;
 
       try {
-        await trackCoinSearch(coinMatch.id, coinMatch.symbol);
+        await trackCoinSearch({
+          name: coinMatch.name,
+          symbol: coinMatch.symbol,
+          logo: imageUrl,
+          geckoId: coinMatch.id
+        });
       } catch (error) {
         console.error("[SEARCH_TRACKING_ERROR]:", error);
       }

@@ -20,8 +20,11 @@ model SearchedCoin {
   name      String   @unique
   symbol    String
   count     Int      @default(1)
+  logo      String?
+  geckoId   String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([count])
+  @@index([geckoId])
 }
