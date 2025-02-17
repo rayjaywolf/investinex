@@ -15,7 +15,7 @@ import { z } from "zod";
 const COINGECKO_API_BASE = "https://api.coingecko.com/api/v3";
 const DEXSCREENER_API_BASE = "https://api.dexscreener.com/latest/dex";
 const GOOGLE_SEARCH_URL = "https://www.googleapis.com/customsearch/v1";
-const COINGECKO_REGEX = /coingecko\.com\/en\/coins\/([a-zA-Z0-9-]+)/;
+const COINGECKO_REGEX = /https?:\/\/(?:www\.)?coingecko\.com\/en\/coins\/([a-zA-Z0-9-]+)/;
 const DEXSCREENER_URL_REGEX = /dexscreener\.com\/([^\/]+)\/([a-zA-Z0-9-_]{32,44})(\/|$)/;
 const PAIR_REGEX = /\$([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/;
 const URL_REGEX = /(https?:\/\/[^\s]+)/;
@@ -184,21 +184,39 @@ async function fetchSearchResults(query: string) {
   }
 }
 
+// Optimize axios with better retry strategy
+const axiosInstance = axios.create();
+axiosRetry(axiosInstance, { 
+  retries: 2, // Reduced from 3
+  retryDelay: (retryCount) => retryCount * 1000, // Linear backoff instead of exponential
+  retryCondition: (error) => {
+    return axiosRetry.isNetworkOrIdempotentRequestError(error) || error.code === 'ECONNABORTED';
+  },
+  timeout: 5000 // 5 second timeout
+});
+
 async function fetchCoinGeckoPrice(coinId: string): Promise<CoinData | null> {
   try {
+    console.log("[COINGECKO_PRICE] Starting price fetch for:", coinId);
     axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
+    
+    console.log("[COINGECKO_SEARCH] Searching for coin:", coinId);
     const searchResponse = await axios.get(
       `${COINGECKO_API_BASE}/search?query=${coinId}`
     );
+    console.log("[COINGECKO_SEARCH] Search response:", searchResponse.data.coins?.[0]);
 
     const coinMatch = searchResponse.data.coins?.[0];
     if (!coinMatch) {
+      console.log("[COINGECKO_SEARCH] No coin match found");
       return null;
     }
 
+    console.log("[COINGECKO_PRICE] Fetching price for coin ID:", coinMatch.id);
     const priceResponse = await axios.get(
       `${COINGECKO_API_BASE}/simple/price?ids=${coinMatch.id}&vs_currencies=usd&include_24hr_change=true`
     );
+    console.log("[COINGECKO_PRICE] Price response:", priceResponse.data[coinMatch.id]);
 
     if (priceResponse.data[coinMatch.id]) {
       const data = priceResponse.data[coinMatch.id];
@@ -306,8 +324,9 @@ function extractURL(text: string): string | null {
 
 function extractCoinGeckoId(url: string): string | null {
   try {
-    const match = url.match(COINGECKO_REGEX);
-    return match ? match[1] : null;
+    const parsedUrl = new URL(url);
+    const match = parsedUrl.pathname.match(/\/en\/coins\/([a-zA-Z0-9-]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
   } catch (error) {
     return null;
   }
@@ -331,37 +350,15 @@ function extractDexscreenerPair(
 
 async function fetchTokenFromContract(address: string): Promise<CoinData | null> {
   try {
-    // Handle Solana addresses differently
-    if (address.length >= 32 && address.length <= 44) {
-      const solanaResponse = await axios.get(
-        `https://api.dexscreener.com/latest/dex/tokens/${address}`
-      );
-
-      if (solanaResponse.data.pairs?.length > 0) {
-        const bestPair = solanaResponse.data.pairs.reduce((prev, current) => 
-          (prev.liquidity?.usd || 0) > (current.liquidity?.usd || 0) ? prev : current
-        );
-
-        return {
-          name: bestPair.baseToken?.name || "Unknown Token",
-          symbol: bestPair.baseToken?.symbol || "UNKNOWN",
-          price: parseFloat(bestPair.priceUsd || "0"),
-          change24h: parseFloat(bestPair.priceChange?.h24 || "0"),
-          contractAddress: address,
-          chain: "solana",
-          baseSymbol: bestPair.quoteToken?.symbol,
-          pairAddress: bestPair.pairAddress,
-        };
-      }
-    }
-
-    // First try DexScreener as it supports multiple chains
+    console.log("[CONTRACT] Attempting DexScreener token lookup");
+    // First try DexScreener's token endpoint
     const dexResponse = await axios.get(
       `${DEXSCREENER_API_BASE}/tokens/${address}`
     );
+    console.log("[CONTRACT] DexScreener response:", dexResponse.data);
 
     if (dexResponse.data.pairs && dexResponse.data.pairs.length > 0) {
-      const bestPair = dexResponse.data.pairs.reduce((prev, current) => {
+      const bestPair = dexResponse.data.pairs.reduce((prev: any, current: any) => {
         return (prev.liquidity?.usd || 0) > (current.liquidity?.usd || 0)
           ? prev
           : current;
@@ -379,31 +376,46 @@ async function fetchTokenFromContract(address: string): Promise<CoinData | null>
       };
     }
 
-    // If DexScreener fails, try each chain explorer
-    for (const [chain, apiUrl] of Object.entries(CHAIN_EXPLORERS)) {
-      const response = await axios.get(apiUrl, {
-        params: {
-          module: "token",
-          action: "tokeninfo",
-          contractaddress: address,
-          apikey: process.env[`${chain.toUpperCase()}_SCAN_API_KEY`],
-        },
-      });
+    // If DexScreener fails, then try chain explorers
+    if (address.length >= 32 && address.length <= 44) {
+      console.log("[CONTRACT] Detected Solana-length address, skipping chain explorers");
+      return null;
+    }
 
-      if (response.data.status === "1" && response.data.result) {
-        const tokenInfo = response.data.result[0];
-        
-        // Try to get price from CoinGecko using symbol
-        const cgData = await fetchCoinGeckoPrice(tokenInfo.symbol);
-        
-        return {
-          name: tokenInfo.name,
-          symbol: tokenInfo.symbol,
-          price: cgData?.price || 0,
-          change24h: cgData?.change24h || null,
-          contractAddress: address,
-          chain: chain,
-        };
+    console.log("[CONTRACT] Attempting chain explorer lookups");
+    for (const [chain, apiUrl] of Object.entries(CHAIN_EXPLORERS)) {
+      if (!process.env[`${chain.toUpperCase()}_SCAN_API_KEY`]) {
+        console.log(`[CONTRACT] Skipping ${chain} - no API key configured`);
+        continue;
+      }
+
+      try {
+        const response = await axios.get(apiUrl, {
+          params: {
+            module: "token",
+            action: "tokeninfo",
+            contractaddress: address,
+            apikey: process.env[`${chain.toUpperCase()}_SCAN_API_KEY`],
+          },
+        });
+
+        if (response.data.status === "1" && response.data.result) {
+          const tokenInfo = response.data.result[0];
+          console.log(`[CONTRACT] Found token on ${chain}:`, tokenInfo);
+
+          const coinGeckoData = await fetchCoinGeckoPrice(tokenInfo.symbol);
+
+          return {
+            name: tokenInfo.name,
+            symbol: tokenInfo.symbol,
+            price: coinGeckoData?.price || 0,
+            change24h: coinGeckoData?.change24h || null,
+            contractAddress: address,
+            chain: chain,
+          };
+        }
+      } catch (error) {
+        console.log(`[CONTRACT] Error checking ${chain}:`, error.message);
       }
     }
 
@@ -414,272 +426,136 @@ async function fetchTokenFromContract(address: string): Promise<CoinData | null>
   }
 }
 
-async function fetchDexscreenerPairInfo(pairAddress: string): Promise<CoinData | null> {
+async function fetchDexscreenerPairInfo(chain: string, pairAddress: string): Promise<CoinData | null> {
   try {
+    console.log("[DEXSCREENER_PAIR_INFO] Starting fetch for chain:", chain, "address:", pairAddress);
     axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
     
-    // For Solana addresses, we need to use the tokens endpoint
-    if (pairAddress.length >= 32 && pairAddress.length <= 44) {
-      const response = await axios.get(
-        `${DEXSCREENER_API_BASE}/tokens/${pairAddress}`
-      );
+    // First try the pairs endpoint
+    const pairsUrl = `${DEXSCREENER_API_BASE}/pairs/${chain}/${pairAddress}`;
+    console.log("[DEXSCREENER_PAIR_INFO] Trying pairs URL:", pairsUrl);
+    
+    const pairResponse = await axios.get(pairsUrl);
+    console.log("[DEXSCREENER_PAIR_INFO] Pairs API response:", pairResponse.data);
 
-      if (!response.data.pairs || response.data.pairs.length === 0) {
-        return null;
-      }
-
-      // Get the pair with highest liquidity
-      const bestPair = response.data.pairs.reduce((prev: any, current: any) => 
-        (prev.liquidity?.usd || 0) > (current.liquidity?.usd || 0) ? prev : current
-      );
-
+    if (pairResponse.data.pair) {
+      const pair = pairResponse.data.pair;
       return {
-        name: bestPair.baseToken.name,
-        symbol: bestPair.baseToken.symbol.toUpperCase(),
-        price: parseFloat(bestPair.priceUsd || bestPair.priceNative),
-        change24h: bestPair.priceChange?.h24 || null,
-        baseSymbol: bestPair.quoteToken.symbol.toUpperCase(),
-        pairAddress: bestPair.pairAddress,
-        contractAddress: bestPair.baseToken.address,
-        chain: bestPair.chainId
+        name: pair.baseToken.name,
+        symbol: pair.baseToken.symbol.toUpperCase(),
+        price: parseFloat(pair.priceUsd || pair.priceNative),
+        change24h: pair.priceChange?.h24 || null,
+        baseSymbol: pair.quoteToken.symbol.toUpperCase(),
+        pairAddress: pair.pairAddress,
+        contractAddress: pair.baseToken.address,
+        chain: pair.chainId
       };
     }
 
-    // For other chains, use the pairs endpoint
-    const response = await axios.get(
-      `${DEXSCREENER_API_BASE}/pairs/${pairAddress}`
-    );
+    // If pairs endpoint doesn't work, try tokens endpoint
+    if (chain.toLowerCase() === 'solana') {
+      const tokensUrl = `${DEXSCREENER_API_BASE}/tokens/${pairAddress}`;
+      console.log("[DEXSCREENER_PAIR_INFO] Trying tokens URL:", tokensUrl);
+      
+      const tokenResponse = await axios.get(tokensUrl);
+      console.log("[DEXSCREENER_PAIR_INFO] Tokens API response:", tokenResponse.data);
 
-    if (!response.data.pair) {
-      return null;
+      if (tokenResponse.data.pairs && tokenResponse.data.pairs.length > 0) {
+        const bestPair = tokenResponse.data.pairs.reduce((prev: any, current: any) =>
+          (prev.liquidity?.usd || 0) > (current.liquidity?.usd || 0) ? prev : current
+        );
+
+        return {
+          name: bestPair.baseToken.name,
+          symbol: bestPair.baseToken.symbol.toUpperCase(),
+          price: parseFloat(bestPair.priceUsd || bestPair.priceNative),
+          change24h: bestPair.priceChange?.h24 || null,
+          baseSymbol: bestPair.quoteToken.symbol.toUpperCase(),
+          pairAddress: bestPair.pairAddress,
+          contractAddress: bestPair.baseToken.address,
+          chain: bestPair.chainId
+        };
+      }
     }
 
-    const pair = response.data.pair;
-    return {
-      name: pair.baseToken.name,
-      symbol: pair.baseToken.symbol.toUpperCase(),
-      price: parseFloat(pair.priceUsd || pair.priceNative),
-      change24h: pair.priceChange?.h24 || null,
-      baseSymbol: pair.quoteToken.symbol.toUpperCase(),
-      pairAddress: pair.pairAddress,
-      contractAddress: pair.baseToken.address,
-      chain: pair.chainId
-    };
+    console.log("[DEXSCREENER_PAIR_INFO] No valid pair or token data found");
+    return null;
   } catch (error) {
     console.error("[DEXSCREENER_ERROR]", error);
     return null;
   }
 }
 
+// Optimize getCoinData function
 async function getCoinData(userInput: string): Promise<CoinData | null> {
-  const dexscreenerMatch = userInput.match(DEXSCREENER_URL_REGEX);
-  if (dexscreenerMatch) {
-    const [_, chain, pairAddress] = dexscreenerMatch;
-    if (!pairAddress) return null;
-
-    // Handle Solana pairs differently
-    if (chain.toLowerCase() === 'solana') {
-      try {
-        const pairResponse = await axios.get(
-          `${DEXSCREENER_API_BASE}/pairs/solana/${pairAddress}`
-        );
-
-        if (!pairResponse.data.pairs || pairResponse.data.pairs.length === 0) {
-          return null;
-        }
-
-        const pair = pairResponse.data.pairs[0];
-        return {
-          name: pair.baseToken.name,
-          symbol: pair.baseToken.symbol.toUpperCase(),
-          price: parseFloat(pair.priceUsd || pair.priceNative),
-          change24h: pair.priceChange?.h24 || null,
-          baseSymbol: pair.quoteToken.symbol.toUpperCase(),
-          pairAddress: pair.pairAddress,
-          contractAddress: pair.baseToken.address,
-          chain: 'solana'
-        };
-      } catch (error) {
-        console.error("[SOLANA_PAIR_ERROR]", error);
-        return null;
-      }
-    }
-    
-    return await fetchDexscreenerPairInfo(pairAddress);
-  }
+  console.log("[GET_COIN_DATA] Starting with input:", userInput);
   
-  // First check if input is a contract address
-  if (CONTRACT_ADDRESS_REGEX.test(userInput.trim())) {
-    return await fetchTokenFromContract(userInput.trim());
-  }
+  // Run initial checks in parallel
+  const [link, isContract] = await Promise.all([
+    Promise.resolve(extractURL(userInput)),
+    Promise.resolve(CONTRACT_ADDRESS_REGEX.test(userInput.trim()))
+  ]);
 
-  const dexscreenerPair = extractDexscreenerPair(userInput);
-
-  if (dexscreenerPair) {
-    const { token, base } = dexscreenerPair;
-    let coinData = null;
-    if (base === "DIRECT") {
-      const urlMatch = userInput.match(DEXSCREENER_URL_REGEX);
-      if (urlMatch) {
-        const chain = urlMatch[1];
-        const pairAddress = urlMatch[2];
-
-        const pairResponse = await axios.get(
-          `${DEXSCREENER_API_BASE}/pairs/${chain}/${pairAddress}`
-        );
-        const pair = pairResponse.data.pair;
-
-        if (pair) {
-          let priceUsd = parseFloat(pair.priceNative);
-          if (pair.quoteToken.symbol.toUpperCase() !== "USDC") {
-            const quoteTokenPriceResponse = await axios.get(
-              `${DEXSCREENER_API_BASE}/tokens/${pair.quoteToken.address}`
-            );
-
-            const quoteTokenPairs = quoteTokenPriceResponse.data.pairs;
-
-            if (!quoteTokenPairs || quoteTokenPairs.length === 0) {
-              return null;
-            }
-
-            let usdQuotePair = null;
-            for (const quotePair of quoteTokenPairs) {
-              if (quotePair.quoteToken.symbol.toUpperCase() === "USDC") {
-                if (
-                  !usdQuotePair ||
-                  (quotePair.liquidity?.usd ?? 0) >
-                    (usdQuotePair.liquidity?.usd ?? 0)
-                ) {
-                  usdQuotePair = quotePair;
-                }
-              }
-            }
-
-            if (!usdQuotePair) {
-              return null;
-            }
-
-            const quoteTokenPriceUsd = parseFloat(usdQuotePair.priceNative);
-            priceUsd *= quoteTokenPriceUsd;
-          }
-
-          coinData = {
-            name: pair.baseToken.name,
-            symbol: pair.baseToken.symbol.toUpperCase(),
-            price: priceUsd,
-            change24h: pair.priceChange.h24,
-            baseSymbol: pair.quoteToken.symbol.toUpperCase(),
-            pairAddress: pair.pairAddress,
-          };
-        }
-      }
-    } else {
-      coinData = await fetchDexscreenerPrice(token, base);
+  if (link) {
+    const coinGeckoId = extractCoinGeckoId(link);
+    if (coinGeckoId) {
+      const coinData = await fetchCoinGeckoPrice(coinGeckoId);
+      if (coinData) return coinData;
     }
 
-    return coinData;
-  } else {
-    const link = extractURL(userInput);
-    if (link) {
-      const coinGeckoId = extractCoinGeckoId(link);
-
-      if (coinGeckoId) {
-        const coinData = await fetchCoinGeckoPrice(coinGeckoId);
-        return coinData;
-      } else {
-        try {
-          const linkResponse = await axios.get(link);
-          let pageText = linkResponse.data;
-          pageText = pageText.replace(/<[^>]*>/g, " ");
-
-          const linkExtractPrompt = ChatPromptTemplate.fromMessages([
-            ["system", LINK_EXTRACTION_PROMPT],
-            ["human", "{input}"],
-          ]);
-          const linkExtractChain = linkExtractPrompt.pipe(
-            new ChatGoogleGenerativeAI({
-              modelName: "gemini-2.0-flash-exp",
-              maxRetries: 2,
-              temperature: 0.8,
-              apiKey: process.env.GOOGLE_API_KEY,
-            })
-          );
-          const extractionFromLink = await linkExtractChain.invoke({
-            input: pageText,
-          });
-          const extractedInfo = extractionFromLink.content.trim();
-
-          const coinMatch = extractedInfo.match(/Coin:\s*([^,]+)/i);
-          const priceMatch = extractedInfo.match(/Price:\s*(.+)/i);
-          const coin = coinMatch ? coinMatch[1].trim() : "";
-          const priceInfo = priceMatch ? priceMatch[1].trim() : "";
-
-          if (!coin) {
-            return null;
-          }
-
-          return {
-            name: coin,
-            symbol: coin,
-            price: parseFloat(priceInfo.replace(/[^0-9.-]+/g, "")),
-            change24h: null,
-          };
-        } catch (error) {
-          console.error("[LINK_FETCH_ERROR]", error);
-          return null;
-        }
-      }
-    } else {
-      const extractChain = ChatPromptTemplate.fromMessages([
-        ["system", EXTRACT_PROMPT],
-        ["human", "{input}"],
-      ]).pipe(
-        new ChatGoogleGenerativeAI({
-          modelName: "gemini-2.0-flash-exp",
-          maxRetries: 2,
-          temperature: 0.8,
-          apiKey: process.env.GOOGLE_API_KEY,
-        })
-      );
-      const extractionResponse = await extractChain.invoke({
-        input: userInput,
-      });
-      let cryptoSymbols = extractionResponse.content.trim();
-
-      if (cryptoSymbols.toLowerCase() !== "none" && cryptoSymbols !== "") {
-        const symbolsArray = cryptoSymbols.split(/[\s,]+/);
-        let coin = symbolsArray[0];
-        if (coin.startsWith("$")) {
-          coin = coin.substring(1);
-        }
-
-        let coinData = await fetchCoinGeckoPrice(coin);
-
-        if (!coinData) {
-          coinData = await fetchDexscreenerPrice(coin, "USDC");
-        }
-
-        if (coinData) {
-          return coinData;
-        } else {
-          const cryptoQuery = `${coin} price cryptocurrency`;
-          const searchResults = await fetchSearchResults(cryptoQuery);
-          const relevantInfo = searchResults.items
-            ? searchResults.items.map((item) => item.snippet).join(" ")
-            : "No price information found.";
-
-          return {
-            name: coin,
-            symbol: coin,
-            price: parseFloat(relevantInfo.replace(/[^0-9.-]+/g, "")),
-            change24h: null,
-          };
-        }
-      } else {
-        return null;
-      }
+    const dexscreenerMatch = userInput.match(DEXSCREENER_URL_REGEX);
+    if (dexscreenerMatch) {
+      const [_, chain, pairAddress] = dexscreenerMatch;
+      if (!pairAddress) return null;
+      return await fetchDexscreenerPairInfo(chain, pairAddress);
     }
   }
+
+  if (isContract) {
+    const caData = await fetchTokenFromContract(userInput.trim());
+    if (caData) return caData;
+  }
+
+  // Optimize symbol extraction
+  if (userInput.startsWith('$')) {
+    const symbol = userInput.substring(1).split(/[\s,/]/)[0];
+    const [coinGeckoData, dexScreenerData] = await Promise.all([
+      fetchCoinGeckoPrice(symbol),
+      fetchDexscreenerPrice(symbol, "USDC")
+    ]);
+    
+    return coinGeckoData || dexScreenerData || null;
+  }
+
+  // Only use AI extraction as last resort
+  const extractChain = ChatPromptTemplate.fromMessages([
+    ["system", EXTRACT_PROMPT],
+    ["human", "{input}"],
+  ]).pipe(
+    new ChatGoogleGenerativeAI({
+      modelName: "gemini-2.0-flash-exp",
+      maxRetries: 2,
+      temperature: 0.8,
+      apiKey: process.env.GOOGLE_API_KEY,
+    })
+  );
+
+  const extractionResponse = await extractChain.invoke({
+    input: userInput,
+  });
+  
+  const cryptoSymbols = extractionResponse.content.trim();
+  if (cryptoSymbols.toLowerCase() === "none" || cryptoSymbols === "") {
+    return null;
+  }
+
+  const symbol = cryptoSymbols.split(/[\s,]+/)[0].replace('$', '');
+  const [coinGeckoData, dexScreenerData] = await Promise.all([
+    fetchCoinGeckoPrice(symbol),
+    fetchDexscreenerPrice(symbol, "USDC")
+  ]);
+
+  return coinGeckoData || dexScreenerData || null;
 }
 
 async function formatTradingRecommendation(
@@ -736,75 +612,45 @@ async function formatTradingRecommendation(
   return `${tableHTML}\n\n<div class="mt-6 p-4 bg-indigo-500/5 rounded-lg backdrop-blur-sm border border-indigo-500/10">\n  <h3 class="text-lg font-semibold text-indigo-300 mb-2">Summary</h3>\n  <p class="text-gray-300 leading-relaxed">${summaryResponse.content}</p>\n</div>`;
 }
 
+// Optimize generateTradingRecommendation
 async function generateTradingRecommendation(
   coinData: CoinData,
   chatHistory: { role: string; content: string }[],
   model: ChatGoogleGenerativeAI,
   lastMessage: string
 ): Promise<AnalysisData> {
-  const marketData = `Current market data for ${coinData.name} (${coinData.symbol}${coinData.baseSymbol ? "/" + coinData.baseSymbol : ""}):
+  const marketData = `Current market data for ${coinData.name} (${coinData.symbol}${
+    coinData.baseSymbol ? "/" + coinData.baseSymbol : ""
+  }):
 - Price: $${coinData.price.toFixed(8)}
-- 24h Change: ${coinData.change24h ? coinData.change24h.toFixed(2) + "%" : "N/A"}
-- Market Cap: ${coinData.price * 1_000_000 /* Replace with actual market cap data */}
-- Trading Volume: ${coinData.price * 100_000 /* Replace with actual volume data */}`;
+- 24h Change: ${coinData.change24h ? coinData.change24h.toFixed(2) + "%" : "N/A"}`;
 
   const analysisChain = ChatPromptTemplate.fromMessages([
     ["system", SAMARITAN_PROMPT],
-    new MessagesPlaceholder("chat_history"),
     ["human", "{input}"],
   ]).pipe(model);
 
   try {
     const response = await analysisChain.invoke({
-      chat_history: chatHistory,
       input: `${lastMessage}\n\n${marketData}`,
     });
 
-    // Add enhanced JSON validation
     const parsed = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim());
     
-    const requiredFields = ['price', 'entryStrategy', 'leverage', 'stopLoss', 'takeProfit', 'duration', 'riskLevel', 'summary'];
-    const missingFields = requiredFields.filter(field => !parsed[field]);
-    
-    if (missingFields.length > 0) {
-      throw new Error(`Missing fields: ${missingFields.join(', ')}`);
-    }
-
-    // Validate number formats
-    const priceRegex = /^\$?\d+(?:\.\d+)?/;
-    if (!priceRegex.test(parsed.price)) {
-      throw new Error(`Invalid price format: ${parsed.price}`);
-    }
-
     return {
-      price: parsed.price,
-      entryStrategy: parsed.entryStrategy,
-      leverage: parsed.leverage,
-      stopLoss: parsed.stopLoss,
-      takeProfit: parsed.takeProfit,
-      duration: parsed.duration,
-      riskLevel: parsed.riskLevel,
-      summary: parsed.summary,
-      tradeType: parsed.entryStrategy.toLowerCase().includes('short') ? 'Short' : 'Long',
+      price: parsed.price || `$${coinData.price.toFixed(8)}`,
+      entryStrategy: parsed.entryStrategy || `Long at $${coinData.price.toFixed(8)}`,
+      leverage: parsed.leverage || "x3",
+      stopLoss: parsed.stopLoss || `$${(coinData.price * 0.97).toFixed(8)} ➘`,
+      takeProfit: parsed.takeProfit || `$${(coinData.price * 1.05).toFixed(8)} ➚`,
+      duration: parsed.duration || "4-6h",
+      riskLevel: parsed.riskLevel || "🟠 Medium",
+      summary: parsed.summary || `Analysis for ${coinData.symbol} at $${coinData.price.toFixed(8)}`,
+      tradeType: parsed.entryStrategy?.toLowerCase().includes('short') ? 'Short' : 'Long',
     };
   } catch (error) {
     console.error("Analysis generation error:", error);
-    // Generate fallback analysis using basic calculations
-    const fallbackPrice = `$${coinData.price.toFixed(2)}`;
-    const fallbackChange = coinData.change24h ? Math.abs(coinData.change24h).toFixed(2) + '%' : 'N/A';
-    
-    return {
-      price: fallbackPrice,
-      entryStrategy: `Long at $${(coinData.price * 1.02).toFixed(2)}`,
-      leverage: 'x5',
-      stopLoss: `$${(coinData.price * 0.97).toFixed(2)} ➘`,
-      takeProfit: `$${(coinData.price * 1.05).toFixed(2)} ➚`,
-      duration: '4-6h',
-      riskLevel: coinData.change24h && Math.abs(coinData.change24h) > 10 ? '🔴 High' : '🟠 Medium',
-      summary: `Based on current price of ${fallbackPrice} and 24h change of ${fallbackChange}, ` +
-        'a moderate long position is recommended with tight stop loss. ' +
-        'Monitor volume changes closely in the suggested timeframe.'
-    };
+    return generateFallbackAnalysis(coinData);
   }
 }
 
@@ -814,35 +660,44 @@ const requestSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    console.log("[POST] Starting request processing");
     const validatedReq = requestSchema.safeParse(await req.json());
     if (!validatedReq.success) {
+      console.log("[POST] Invalid request format:", validatedReq.error);
       return NextResponse.json(
         { error: "Invalid input format." },
         { status: 400 }
       );
     }
 
+    console.log("[POST] Request validated successfully");
     const { messages } = validatedReq.data;
 
     const model = new ChatGoogleGenerativeAI({
       modelName: "gemini-2.0-flash-exp",
-      maxRetries: 2,
-      temperature: 0.8,
+      maxRetries: 1, // Reduced from 2
+      temperature: 0.7, // Slightly reduced for faster responses
       apiKey: process.env.GOOGLE_API_KEY,
+      maxOutputTokens: 500, // Limit output size
     });
 
     const chatHistory = messages
       .slice(0, -1)
       .filter((msg) => msg[0] !== "system")
       .map((msg) => ({ role: msg[0], content: msg[1] }));
+    console.log("[POST] Chat history processed:", chatHistory);
 
     const lastMessage = messages[messages.length - 1][1];
+    console.log("[POST] Processing last message:", lastMessage);
+    
     const coinData = await getCoinData(lastMessage);
+    console.log("[POST] Coin data retrieved:", coinData);
 
     if (!coinData) {
+      console.log("[POST] No coin data found");
       return NextResponse.json({
         content:
-          "I couldn't detect a valid cryptocurrency in your query. Please prefix the cryptocurrency name with a '$' sign (e.g., '$bitcoin') or enter a coingecko link and try again.",
+          "I couldn't detect a valid cryptocurrency. Please provide a valid CoinGecko or DexScreener link, a contract address (CA), or use the '$' prefix (e.g., '$BTC').",
       });
     }
 
