@@ -7,6 +7,7 @@ import {
   CalendarClock,
   TrendingUp,
   MessageSquare,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +53,15 @@ export function Header() {
               >
                 <TrendingUp className="h-4 w-4" />
                 Trending
+              </Link>
+              <Link
+                href="https://docs.investinex.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 py-2 text-sm font-medium transition-all duration-200 hover:text-primary"
+              >
+                <BookOpen className="h-4 w-4" />
+                Docs
               </Link>
             </nav>
           </div>
