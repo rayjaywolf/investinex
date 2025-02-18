@@ -8,6 +8,7 @@ import {
   TrendingUp,
   MessageSquare,
   BookOpen,
+  Coins,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,28 +29,28 @@ export function Header() {
           <div className="flex items-center gap-8">
             <Link
               href="/"
-              className="flex items-center space-x-1 transition-all duration-200 hover:opacity-80"
+              className="flex items-center gap-2.5 transition-all duration-200 hover:opacity-90 group"
             >
-              <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
+              <Avatar className="h-8 w-8 ring-2 ring-blue-500/20 bg-blue-500/10 transition-all duration-300 group-hover:ring-blue-500/40">
                 <AvatarImage src="/avatar.png" alt="Investinex" />
                 <AvatarFallback>IN</AvatarFallback>
               </Avatar>
-              <span className={`text-lg sm:text-xl tracking-wide ${coolvetica.className}`}>
+              <span className={`text-xl tracking-wide ${coolvetica.className} bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 bg-[length:200%] animate-[gradient-move_3s_ease-in-out_infinite]`}>
                 Investinex
               </span>
             </Link>
 
-            <nav className="hidden sm:flex items-center gap-4 font-bold opacity-90">
+            <nav className="hidden md:flex items-center gap-2">
               <Link 
                 href="/chat"
-                className="flex items-center gap-2 py-2 text-sm font-medium transition-all duration-200 hover:text-primary"
+                className="flex items-center gap-2 py-1.5 px-3 text-sm font-medium rounded-full transition-all duration-200 hover:bg-blue-500/10 hover:text-blue-400 border border-transparent hover:border-blue-500/20"
               >
                 <MessageSquare className="h-4 w-4" />
                 Chat
               </Link>
               <Link 
                 href="/trending"
-                className="flex items-center gap-2 py-2 text-sm font-medium transition-all duration-200 hover:text-primary"
+                className="flex items-center gap-2 py-1.5 px-3 text-sm font-medium rounded-full transition-all duration-200 hover:bg-blue-500/10 hover:text-blue-400 border border-transparent hover:border-blue-500/20"
               >
                 <TrendingUp className="h-4 w-4" />
                 Trending
@@ -58,7 +59,7 @@ export function Header() {
                 href="https://docs.investinex.app"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 py-2 text-sm font-medium transition-all duration-200 hover:text-primary"
+                className="flex items-center gap-2 py-1.5 px-3 text-sm font-medium rounded-full transition-all duration-200 hover:bg-blue-500/10 hover:text-blue-400 border border-transparent hover:border-blue-500/20"
               >
                 <BookOpen className="h-4 w-4" />
                 Docs
@@ -66,31 +67,24 @@ export function Header() {
             </nav>
           </div>
 
-          <nav className="flex items-center gap-4 sm:gap-6">
+          <div className="flex items-center gap-3">
             <Dialog>
               <DialogTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-1 sm:gap-2 hover:bg-primary/10 transition-all duration-200 px-2 sm:px-4"
+                  className="hidden sm:flex items-center gap-2 py-1.5 px-3 text-sm font-medium rounded-full transition-all duration-200 hover:bg-blue-500/10 hover:text-blue-400 border border-transparent hover:border-blue-500/20"
                 >
-                  <Map className="h-4 w-4 text-primary" />
-                  <span className="text-zinc-300 hidden sm:inline">Roadmap</span>
+                  <Map className="h-4 w-4" />
+                  Roadmap
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-auto border border-white/10 bg-background/80 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] supports-[backdrop-filter]:bg-background/50">
-                <DialogHeader className="pb-4 border-b border-white/10">
-                  <DialogTitle className="flex items-center gap-2 text-2xl">
-                    <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                      <Map className="h-6 w-6 text-blue-500" />
-                    </div>
-                    <span className="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 bg-clip-text text-transparent">
-                      Product Roadmap
-                    </span>
-                  </DialogTitle>
+              <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold">Development Roadmap</DialogTitle>
                 </DialogHeader>
-                <div className="pr-4 pt-6">
-                  <div className="grid gap-8">
+                <div className="pr-4 pt-6 overflow-y-auto custom-scrollbar">
+                  <div className="grid gap-8 pb-4">
                     <div className="relative pl-8 border-l-2 border-blue-500/20">
                       <div className="absolute -left-[11px] top-1">
                         <div className="rounded-full bg-background/80 backdrop-blur-sm p-0.5 border border-blue-500/20">
@@ -208,25 +202,33 @@ export function Header() {
               </DialogContent>
             </Dialog>
 
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2">
               <a
                 href="https://github.com/rayjaywolf/investinex"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="transition-all duration-200 hover:text-primary text-zinc-400 hover:scale-110"
+                className="p-1.5 rounded-full transition-all duration-200 hover:bg-blue-500/10 hover:text-blue-400 text-zinc-400 border border-transparent hover:border-blue-500/20"
               >
-                <Github className="h-5 w-5" />
+                <Github className="h-4 w-4" />
               </a>
               <a
                 href="https://x.com/investinex"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="transition-all duration-200 hover:text-primary text-zinc-400 hover:scale-110"
+                className="p-1.5 rounded-full transition-all duration-200 hover:bg-blue-500/10 hover:text-blue-400 text-zinc-400 border border-transparent hover:border-blue-500/20"
               >
-                <Twitter className="h-5 w-5" />
+                <Twitter className="h-4 w-4" />
               </a>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="hidden sm:flex items-center gap-2 border-blue-500/20 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 rounded-full py-1.5 px-3"
+              >
+                <Coins className="h-4 w-4" />
+                Connect Wallet
+              </Button>
             </div>
-          </nav>
+          </div>
         </div>
       </div>
     </header>

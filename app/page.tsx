@@ -23,6 +23,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { CircleBackground } from "@/components/ui/circle-background";
 import { supercharge,coolvetica } from "@/app/fonts";
 import EligibilityBadge from "@/components/EligibilityBadge";
+import { Badge } from "@/components/ui/badge";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -107,6 +108,12 @@ export default function Home() {
           <div className="container px-4 sm:px-8 relative z-10">
             <div className="flex flex-col items-center space-y-6 sm:space-y-8 text-center">
               <div className="space-y-4 sm:space-y-6">
+                <Badge 
+                  variant="outline" 
+                  className="mb-4 border-blue-500/20 bg-blue-500/10 text-blue-400 text-sm px-4 py-1.5 font-medium"
+                >
+                  <span className={`text-blue-300 font-bold`}>$INTX</span>&nbsp;&nbsp;RELEASE - XX.02.25
+                </Badge>
                 <h1 className="hero-content text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-tighter">
                   <span className={`bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 bg-[length:200%] animate-[gradient-move_3s_ease-in-out_infinite] ${coolvetica.className} tracking-wide`}>
                     Investinex
