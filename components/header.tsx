@@ -219,14 +219,6 @@ export function Header() {
               >
                 <Twitter className="h-4 w-4" />
               </a>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="hidden sm:flex items-center gap-2 border-blue-500/20 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 rounded-full py-1.5 px-3"
-              >
-                <Coins className="h-4 w-4" />
-                Connect Wallet
-              </Button>
             </div>
           </div>
         </div>
