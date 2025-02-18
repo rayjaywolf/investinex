@@ -112,7 +112,7 @@ export default function Home() {
                   variant="outline" 
                   className="mb-4 border-blue-500/20 bg-blue-500/10 text-blue-400 text-sm px-4 py-1.5 font-medium"
                 >
-                  <span className={`text-blue-300 font-bold`}>$INTX</span>&nbsp;&nbsp;RELEASE - XX.02.25
+                  <span className={`text-blue-300 font-bold`}>$INTX</span>&nbsp;&nbsp;RELEASE - SOON
                 </Badge>
                 <h1 className="hero-content text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-tighter">
                   <span className={`bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 bg-[length:200%] animate-[gradient-move_3s_ease-in-out_infinite] ${coolvetica.className} tracking-wide`}>

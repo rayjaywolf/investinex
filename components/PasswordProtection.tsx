@@ -6,7 +6,7 @@ interface PasswordProtectionProps {
   children: React.ReactNode;
 }
 
-const PASSWORD = "xentsevni";
+const PASSWORD = "bigballs";
 const STORAGE_KEY = "auth_token";
 
 export default function PasswordProtection({ children }: PasswordProtectionProps) {

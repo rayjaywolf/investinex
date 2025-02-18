@@ -83,10 +83,10 @@ export function Header() {
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-bold">Development Roadmap</DialogTitle>
                 </DialogHeader>
-                <div className="pr-4 pt-6 overflow-y-auto custom-scrollbar">
+                <div className="pr-4 pt-6 pl-3 overflow-y-auto custom-scrollbar">
                   <div className="grid gap-8 pb-4">
-                    <div className="relative pl-8 border-l-2 border-blue-500/20">
-                      <div className="absolute -left-[11px] top-1">
+                    <div className="relative pl-10 border-l-2 border-blue-500/20">
+                      <div className="absolute -left-[13px] top-1">
                         <div className="rounded-full bg-background/80 backdrop-blur-sm p-0.5 border border-blue-500/20">
                           <CheckCircle2 className="h-5 w-5 text-blue-500" />
                         </div>
@@ -119,8 +119,8 @@ export function Header() {
                         </ul>
                       </div>
                     </div>
-                    <div className="relative pl-8 border-l-2 border-blue-500/20">
-                      <div className="absolute -left-[11px] top-1">
+                    <div className="relative pl-10 border-l-2 border-blue-500/20">
+                      <div className="absolute -left-[13px] top-1">
                         <div className="rounded-full bg-background/80 backdrop-blur-sm p-0.5 border border-blue-500/20">
                           <div className="h-5 w-5 rounded-full border-2 border-blue-500/40" />
                         </div>
@@ -145,8 +145,8 @@ export function Header() {
                         </ul>
                       </div>
                     </div>
-                    <div className="relative pl-8 border-l-2 border-primary/20">
-                      <div className="absolute -left-[11px] top-1">
+                    <div className="relative pl-10 border-l-2 border-primary/20">
+                      <div className="absolute -left-[13px] top-1">
                         <div className="rounded-full bg-background p-0.5">
                           <div className="h-5 w-5 rounded-full border-2 border-blue-500/40" />
                         </div>
@@ -171,8 +171,8 @@ export function Header() {
                         </ul>
                       </div>
                     </div>
-                    <div className="relative pl-8 border-l-2 border-primary/20">
-                      <div className="absolute -left-[11px] top-1">
+                    <div className="relative pl-10 border-l-2 border-primary/20">
+                      <div className="absolute -left-[13px] top-1">
                         <div className="rounded-full bg-background p-0.5">
                           <div className="h-5 w-5 rounded-full border-2 border-blue-500/40" />
                         </div>

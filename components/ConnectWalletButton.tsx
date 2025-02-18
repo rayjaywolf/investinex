@@ -34,38 +34,12 @@ export default function ConnectWalletButton() {
   const [isChecking, setIsChecking] = useState(false);
 
   const checkEligibility = async (walletAddress: string) => {
-    try {
-      setIsChecking(true);
-      const response = await fetch("/api/check-eligibility", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ walletAddress }),
-      });
-
-      const data = await response.json();
-      
-      const eligibilityStatus = Boolean(data.isEligible);
-      localStorage.setItem("isEligible", eligibilityStatus.toString());
-      localStorage.setItem("walletAddress", walletAddress);
-      localStorage.setItem("phantomConnected", "true");
-
-      await fetch("/api/set-eligibility", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ isEligible: eligibilityStatus }),
-      });
-
-      return eligibilityStatus;
-    } catch (error) {
-      console.error("Error checking eligibility:", error);
-      return false;
-    } finally {
-      setIsChecking(false);
-    }
+    // Always set as eligible
+    localStorage.setItem("isEligible", "true");
+    localStorage.setItem("walletAddress", walletAddress);
+    localStorage.setItem("phantomConnected", "true");
+    window.dispatchEvent(new Event("walletStatusChange"));
+    return true;
   };
 
   useEffect(() => {
