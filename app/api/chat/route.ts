@@ -654,12 +654,25 @@ async function generateTradingRecommendation(
 
     const parsed = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim());
     
+    // Extract entry price from strategy
+    const entryPriceMatch = parsed.entryStrategy?.match(/\$([\d.]+)/);
+    const entryPrice = entryPriceMatch ? parseFloat(entryPriceMatch[1]) : coinData.price;
+
+    // Extract take profit price and calculate multiplier
+    const takeProfitPriceMatch = parsed.takeProfit?.match(/\$([\d.]+)/);
+    const takeProfitPrice = takeProfitPriceMatch ? parseFloat(takeProfitPriceMatch[1]) : null;
+    const profitMultiplier = takeProfitPrice && entryPrice ? 
+      ` (${(takeProfitPrice / entryPrice).toFixed(1)}x)` : 
+      "";
+
     const variables = {
       price: parsed.price || `$${coinData.price.toFixed(8)}`,
       entryStrategy: parsed.entryStrategy || `Long at $${coinData.price.toFixed(8)}`,
       leverage: parsed.leverage || "x3",
       stopLoss: parsed.stopLoss || `$${(coinData.price * 0.97).toFixed(8)} ➘`,
-      takeProfit: parsed.takeProfit || `$${(coinData.price * 1.05).toFixed(8)} ➚`,
+      takeProfit: parsed.stopLoss ? 
+        `${parsed.takeProfit}${profitMultiplier}` : 
+        `$${(coinData.price * 1.05).toFixed(8)} ➚ (1.05x)`,
       duration: parsed.duration || "4-6h",
       riskLevel: parsed.riskLevel || "🟠 Medium",
       summary: parsed.summary || `Analysis for ${coinData.symbol} at $${coinData.price.toFixed(8)}${coinData.change24h ? ` (${coinData.change24h > 0 ? '+' : ''}${coinData.change24h.toFixed(2)}%)` : ''}`,
