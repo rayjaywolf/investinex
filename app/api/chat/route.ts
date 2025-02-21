@@ -15,11 +15,14 @@ import { z } from "zod";
 const COINGECKO_API_BASE = "https://api.coingecko.com/api/v3";
 const DEXSCREENER_API_BASE = "https://api.dexscreener.com/latest/dex";
 const GOOGLE_SEARCH_URL = "https://www.googleapis.com/customsearch/v1";
-const COINGECKO_REGEX = /https?:\/\/(?:www\.)?coingecko\.com\/en\/coins\/([a-zA-Z0-9-]+)/;
-const DEXSCREENER_URL_REGEX = /dexscreener\.com\/([^\/]+)\/([a-zA-Z0-9-_]{32,44})(\/|$)/;
+const COINGECKO_REGEX =
+  /https?:\/\/(?:www\.)?coingecko\.com\/en\/coins\/([a-zA-Z0-9-]+)/;
+const DEXSCREENER_URL_REGEX =
+  /dexscreener\.com\/([^\/]+)\/([a-zA-Z0-9-_]{32,44})(\/|$)/;
 const PAIR_REGEX = /\$([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/;
 const URL_REGEX = /(https?:\/\/[^\s]+)/;
-const CONTRACT_ADDRESS_REGEX = /^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$/;
+const CONTRACT_ADDRESS_REGEX =
+  /^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$/;
 const CHAIN_EXPLORERS = {
   ethereum: "https://api.etherscan.io/api",
   bsc: "https://api.bscscan.com/api",
@@ -193,28 +196,32 @@ async function fetchSearchResults(query: string) {
 
 // Optimize axios with better retry strategy
 const axiosInstance = axios.create();
-axiosRetry(axiosInstance, { 
+axiosRetry(axiosInstance, {
   retries: 2, // Reduced from 3
   retryDelay: (retryCount) => retryCount * 1000, // Linear backoff instead of exponential
   retryCondition: (error) => {
-    return axiosRetry.isNetworkOrIdempotentRequestError(error) || error.code === 'ECONNABORTED';
+    return (
+      axiosRetry.isNetworkOrIdempotentRequestError(error) ||
+      error.code === "ECONNABORTED"
+    );
   },
-  timeout: 5000 // 5 second timeout
+  timeout: 5000, // 5 second timeout
 });
 
 async function fetchCoinGeckoPrice(coinId: string): Promise<CoinData | null> {
   try {
     console.log("[COINGECKO_PRICE] Starting price fetch for:", coinId);
     axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
-    
+
     console.log("[COINGECKO_SEARCH] Searching for coin:", coinId);
     const searchResponse = await axios.get(
       `${COINGECKO_API_BASE}/search?query=${coinId}`
     );
-    
-    const coinMatch = searchResponse.data.coins.find((coin: any) => 
-      coin.symbol.toLowerCase() === coinId.toLowerCase() || 
-      coin.id.toLowerCase() === coinId.toLowerCase()
+
+    const coinMatch = searchResponse.data.coins.find(
+      (coin: any) =>
+        coin.symbol.toLowerCase() === coinId.toLowerCase() ||
+        coin.id.toLowerCase() === coinId.toLowerCase()
     );
 
     if (!coinMatch) {
@@ -229,16 +236,19 @@ async function fetchCoinGeckoPrice(coinId: string): Promise<CoinData | null> {
 
     if (priceResponse.data[coinMatch.id]) {
       const data = priceResponse.data[coinMatch.id];
-      
-      const imageUrl = coinMatch.large || coinMatch.thumb || coinMatch.small || 
-                      `https://assets.coingecko.com/coins/images/${coinMatch.id}/large/${coinMatch.id}.png`;
+
+      const imageUrl =
+        coinMatch.large ||
+        coinMatch.thumb ||
+        coinMatch.small ||
+        `https://assets.coingecko.com/coins/images/${coinMatch.id}/large/${coinMatch.id}.png`;
 
       try {
         await trackCoinSearch({
           name: coinMatch.name,
           symbol: coinMatch.symbol,
           logo: imageUrl,
-          geckoId: coinMatch.id
+          geckoId: coinMatch.id,
         });
       } catch (error) {
         console.error("[SEARCH_TRACKING_ERROR]:", error);
@@ -328,7 +338,9 @@ async function fetchDexscreenerPrice(
       change24h: bestPair.priceChange.h24,
       baseSymbol: bestPair.quoteToken.symbol.toUpperCase(),
       pairAddress: bestPair.pairAddress,
-      imageUrl: bestPair.baseToken.logoURI || `https://cdn.dexscreener.com/blockchain/${bestPair.chainId}/logo.png`
+      imageUrl:
+        bestPair.baseToken.logoURI ||
+        `https://cdn.dexscreener.com/blockchain/${bestPair.chainId}/logo.png`,
     };
   } catch (error) {
     console.error("[DEXSCREENER_ERROR]", error);
@@ -367,7 +379,9 @@ function extractDexscreenerPair(
   return null;
 }
 
-async function fetchTokenFromContract(address: string): Promise<CoinData | null> {
+async function fetchTokenFromContract(
+  address: string
+): Promise<CoinData | null> {
   try {
     console.log("[CONTRACT] Attempting DexScreener token lookup");
     // First try DexScreener's token endpoint
@@ -377,11 +391,13 @@ async function fetchTokenFromContract(address: string): Promise<CoinData | null>
     console.log("[CONTRACT] DexScreener response:", dexResponse.data);
 
     if (dexResponse.data.pairs && dexResponse.data.pairs.length > 0) {
-      const bestPair = dexResponse.data.pairs.reduce((prev: any, current: any) => {
-        return (prev.liquidity?.usd || 0) > (current.liquidity?.usd || 0)
-          ? prev
-          : current;
-      });
+      const bestPair = dexResponse.data.pairs.reduce(
+        (prev: any, current: any) => {
+          return (prev.liquidity?.usd || 0) > (current.liquidity?.usd || 0)
+            ? prev
+            : current;
+        }
+      );
 
       return {
         name: bestPair.baseToken.name || "Unknown Token",
@@ -392,13 +408,18 @@ async function fetchTokenFromContract(address: string): Promise<CoinData | null>
         chain: bestPair.chainId,
         baseSymbol: bestPair.quoteToken.symbol,
         pairAddress: bestPair.pairAddress,
-        imageUrl: bestPair.info?.imageUrl || bestPair.baseToken.logoURI || `https://cdn.dexscreener.com/blockchain/${bestPair.chainId}/logo.png`
+        imageUrl:
+          bestPair.info?.imageUrl ||
+          bestPair.baseToken.logoURI ||
+          `https://cdn.dexscreener.com/blockchain/${bestPair.chainId}/logo.png`,
       };
     }
 
     // If DexScreener fails, then try chain explorers
     if (address.length >= 32 && address.length <= 44) {
-      console.log("[CONTRACT] Detected Solana-length address, skipping chain explorers");
+      console.log(
+        "[CONTRACT] Detected Solana-length address, skipping chain explorers"
+      );
       return null;
     }
 
@@ -447,17 +468,28 @@ async function fetchTokenFromContract(address: string): Promise<CoinData | null>
   }
 }
 
-async function fetchDexscreenerPairInfo(chain: string, pairAddress: string): Promise<CoinData | null> {
+async function fetchDexscreenerPairInfo(
+  chain: string,
+  pairAddress: string
+): Promise<CoinData | null> {
   try {
-    console.log("[DEXSCREENER_PAIR_INFO] Starting fetch for chain:", chain, "address:", pairAddress);
+    console.log(
+      "[DEXSCREENER_PAIR_INFO] Starting fetch for chain:",
+      chain,
+      "address:",
+      pairAddress
+    );
     axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
-    
+
     // First try the pairs endpoint
     const pairsUrl = `${DEXSCREENER_API_BASE}/pairs/${chain}/${pairAddress}`;
     console.log("[DEXSCREENER_PAIR_INFO] Trying pairs URL:", pairsUrl);
-    
+
     const pairResponse = await axios.get(pairsUrl);
-    console.log("[DEXSCREENER_PAIR_INFO] Pairs API response:", pairResponse.data);
+    console.log(
+      "[DEXSCREENER_PAIR_INFO] Pairs API response:",
+      pairResponse.data
+    );
 
     if (pairResponse.data.pair) {
       const pair = pairResponse.data.pair;
@@ -470,21 +502,30 @@ async function fetchDexscreenerPairInfo(chain: string, pairAddress: string): Pro
         pairAddress: pair.pairAddress,
         contractAddress: pair.baseToken.address,
         chain: pair.chainId,
-        imageUrl: pair.info?.imageUrl || pair.baseToken.logoURI || `https://cdn.dexscreener.com/blockchain/${pair.chainId}/logo.png`
+        imageUrl:
+          pair.info?.imageUrl ||
+          pair.baseToken.logoURI ||
+          `https://cdn.dexscreener.com/blockchain/${pair.chainId}/logo.png`,
       };
     }
 
     // If pairs endpoint doesn't work, try tokens endpoint
-    if (chain.toLowerCase() === 'solana') {
+    if (chain.toLowerCase() === "solana") {
       const tokensUrl = `${DEXSCREENER_API_BASE}/tokens/${pairAddress}`;
       console.log("[DEXSCREENER_PAIR_INFO] Trying tokens URL:", tokensUrl);
-      
+
       const tokenResponse = await axios.get(tokensUrl);
-      console.log("[DEXSCREENER_PAIR_INFO] Tokens API response:", tokenResponse.data);
+      console.log(
+        "[DEXSCREENER_PAIR_INFO] Tokens API response:",
+        tokenResponse.data
+      );
 
       if (tokenResponse.data.pairs && tokenResponse.data.pairs.length > 0) {
-        const bestPair = tokenResponse.data.pairs.reduce((prev: any, current: any) =>
-          (prev.liquidity?.usd || 0) > (current.liquidity?.usd || 0) ? prev : current
+        const bestPair = tokenResponse.data.pairs.reduce(
+          (prev: any, current: any) =>
+            (prev.liquidity?.usd || 0) > (current.liquidity?.usd || 0)
+              ? prev
+              : current
         );
 
         return {
@@ -496,7 +537,10 @@ async function fetchDexscreenerPairInfo(chain: string, pairAddress: string): Pro
           pairAddress: bestPair.pairAddress,
           contractAddress: bestPair.baseToken.address,
           chain: bestPair.chainId,
-          imageUrl: bestPair.info?.imageUrl || bestPair.baseToken.logoURI || `https://cdn.dexscreener.com/blockchain/${bestPair.chainId}/logo.png`
+          imageUrl:
+            bestPair.info?.imageUrl ||
+            bestPair.baseToken.logoURI ||
+            `https://cdn.dexscreener.com/blockchain/${bestPair.chainId}/logo.png`,
         };
       }
     }
@@ -512,11 +556,11 @@ async function fetchDexscreenerPairInfo(chain: string, pairAddress: string): Pro
 // Optimize getCoinData function
 async function getCoinData(userInput: string): Promise<CoinData | null> {
   console.log("[GET_COIN_DATA] Starting with input:", userInput);
-  
+
   // Run initial checks in parallel
   const [link, isContract] = await Promise.all([
     Promise.resolve(extractURL(userInput)),
-    Promise.resolve(CONTRACT_ADDRESS_REGEX.test(userInput.trim()))
+    Promise.resolve(CONTRACT_ADDRESS_REGEX.test(userInput.trim())),
   ]);
 
   if (link) {
@@ -540,13 +584,13 @@ async function getCoinData(userInput: string): Promise<CoinData | null> {
   }
 
   // Optimize symbol extraction
-  if (userInput.startsWith('$')) {
+  if (userInput.startsWith("$")) {
     const symbol = userInput.substring(1).split(/[\s,/]/)[0];
     const [coinGeckoData, dexScreenerData] = await Promise.all([
       fetchCoinGeckoPrice(symbol),
-      fetchDexscreenerPrice(symbol, "USDC")
+      fetchDexscreenerPrice(symbol, "USDC"),
     ]);
-    
+
     return coinGeckoData || dexScreenerData || null;
   }
 
@@ -566,16 +610,16 @@ async function getCoinData(userInput: string): Promise<CoinData | null> {
   const extractionResponse = await extractChain.invoke({
     input: userInput,
   });
-  
+
   const cryptoSymbols = extractionResponse.content.trim();
   if (cryptoSymbols.toLowerCase() === "none" || cryptoSymbols === "") {
     return null;
   }
 
-  const symbol = cryptoSymbols.split(/[\s,]+/)[0].replace('$', '');
+  const symbol = cryptoSymbols.split(/[\s,]+/)[0].replace("$", "");
   const [coinGeckoData, dexScreenerData] = await Promise.all([
     fetchCoinGeckoPrice(symbol),
-    fetchDexscreenerPrice(symbol, "USDC")
+    fetchDexscreenerPrice(symbol, "USDC"),
   ]);
 
   return coinGeckoData || dexScreenerData || null;
@@ -586,40 +630,65 @@ async function formatTradingRecommendation(
   model: ChatGoogleGenerativeAI,
   coinData: CoinData
 ): Promise<string> {
-  const { coolvetica } = await import('@/app/fonts');
-  
+  const { coolvetica } = await import("@/app/fonts");
+
   // Generate image HTML
-  const coinImageHtml = coinData.imageUrl 
+  const coinImageHtml = coinData.imageUrl
     ? `<img src="${coinData.imageUrl}" alt="${coinData.symbol}" class="w-12 h-12 rounded-full" />`
     : `<div class="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center text-lg font-semibold text-amber-400">${coinData.symbol}</div>`;
 
-  const tableHTML = FORMATTING_PROMPT
-    .replace("{{fontClass}}", coolvetica.className)
+  const tableHTML = FORMATTING_PROMPT.replace(
+    "{{fontClass}}",
+    coolvetica.className
+  )
     .replace("{{coinImage}}", coinImageHtml)
     .replace("{{coinName}}", coinData.name)
     .replace("{{basePrice}}", analysisData.price)
-    .replace("{{priceChange}}", analysisData.price.includes('(') ? '' : ` (${analysisData.price.split(' ')[1]})`)
-    .replace("{{priceChangeColor}}", analysisData.priceChangeColor || 'text-gray-400')
-    .replace("{{tradeType}}", analysisData.tradeType || 'Long')
-    .replace("{{tradeColor}}", analysisData.tradeType === 'Short' ? 'text-rose-400' : 'text-emerald-400')
-    .replace("{{entryText}}", analysisData.entryStrategy.split(' at ')[0] + ' at ')
-    .replace("{{entryPrice}}", analysisData.entryStrategy.split(' at ')[1])
-    .replace("{{entryColor}}", analysisData.tradeType === 'Short' ? 'text-rose-400' : 'text-emerald-400')
-    .replace("{{entryReason}}", '')
+    .replace(
+      "{{priceChange}}",
+      analysisData.price.includes("(")
+        ? ""
+        : ` (${analysisData.price.split(" ")[1]})`
+    )
+    .replace(
+      "{{priceChangeColor}}",
+      analysisData.priceChangeColor || "text-gray-400"
+    )
+    .replace("{{tradeType}}", analysisData.tradeType || "Long")
+    .replace(
+      "{{tradeColor}}",
+      analysisData.tradeType === "Short" ? "text-rose-400" : "text-emerald-400"
+    )
+    .replace(
+      "{{entryText}}",
+      analysisData.entryStrategy.split(" at ")[0] + " at "
+    )
+    .replace("{{entryPrice}}", analysisData.entryStrategy.split(" at ")[1])
+    .replace(
+      "{{entryColor}}",
+      analysisData.tradeType === "Short" ? "text-rose-400" : "text-emerald-400"
+    )
+    .replace("{{entryReason}}", "")
     .replace("{{stopLoss}}", analysisData.stopLoss)
     .replace("{{takeProfit}}", analysisData.takeProfit)
     .replace("{{leverage}}", analysisData.leverage)
     .replace("{{duration}}", analysisData.duration)
     .replace("{{riskLevel}}", analysisData.riskLevel)
-    .replace("{{riskColor}}", analysisData.riskLevel.includes('🟢') ? 'text-green-400' : 
-                          analysisData.riskLevel.includes('🟠') ? 'text-yellow-400' : 'text-red-400');
+    .replace(
+      "{{riskColor}}",
+      analysisData.riskLevel.includes("🟢")
+        ? "text-green-400"
+        : analysisData.riskLevel.includes("🟠")
+        ? "text-yellow-400"
+        : "text-red-400"
+    );
 
   // Generate summary
   const summaryPrompt = ChatPromptTemplate.fromMessages([
     ["system", SUMMARY_PROMPT],
     ["human", "{input}"],
   ]);
-  
+
   const summaryChain = summaryPrompt.pipe(model);
   const summaryResponse = await summaryChain.invoke({
     input: analysisData.summary,
@@ -635,10 +704,16 @@ async function generateTradingRecommendation(
   model: ChatGoogleGenerativeAI,
   lastMessage: string
 ): Promise<AnalysisData> {
-  const marketData = `Current market data for ${coinData.name} (${coinData.symbol}${
-    coinData.baseSymbol ? "/" + coinData.baseSymbol : ""
-  }):
-- Price: $${coinData.price.toFixed(8)}${coinData.change24h ? ` (${coinData.change24h > 0 ? '+' : ''}${coinData.change24h.toFixed(2)}%)` : ''}`;
+  const marketData = `Current market data for ${coinData.name} (${
+    coinData.symbol
+  }${coinData.baseSymbol ? "/" + coinData.baseSymbol : ""}):
+- Price: $${coinData.price.toFixed(8)}${
+    coinData.change24h
+      ? ` (${coinData.change24h > 0 ? "+" : ""}${coinData.change24h.toFixed(
+          2
+        )}%)`
+      : ""
+  }`;
 
   const analysisChain = ChatPromptTemplate.fromMessages([
     ["system", SAMARITAN_PROMPT],
@@ -652,37 +727,67 @@ async function generateTradingRecommendation(
       input: `${lastMessage}\n\n${marketData}`,
     });
 
-    const parsed = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim());
-    
+    const parsed = JSON.parse(
+      response.content
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim()
+    );
+
     // Extract entry price from strategy
     const entryPriceMatch = parsed.entryStrategy?.match(/\$([\d.]+)/);
-    const entryPrice = entryPriceMatch ? parseFloat(entryPriceMatch[1]) : coinData.price;
+    const entryPrice = entryPriceMatch
+      ? parseFloat(entryPriceMatch[1])
+      : coinData.price;
 
     // Extract take profit price and calculate multiplier
     const takeProfitPriceMatch = parsed.takeProfit?.match(/\$([\d.]+)/);
-    const takeProfitPrice = takeProfitPriceMatch ? parseFloat(takeProfitPriceMatch[1]) : null;
-    const profitMultiplier = takeProfitPrice && entryPrice ? 
-      ` (${(takeProfitPrice / entryPrice).toFixed(1)}x)` : 
-      "";
+    const takeProfitPrice = takeProfitPriceMatch
+      ? parseFloat(takeProfitPriceMatch[1])
+      : null;
+    const profitMultiplier =
+      takeProfitPrice && entryPrice
+        ? ` (${(takeProfitPrice / entryPrice).toFixed(1)}x)`
+        : "";
 
     const variables = {
       price: parsed.price || `$${coinData.price.toFixed(8)}`,
-      entryStrategy: parsed.entryStrategy || `Long at $${coinData.price.toFixed(8)}`,
+      entryStrategy:
+        parsed.entryStrategy || `Long at $${coinData.price.toFixed(8)}`,
       leverage: parsed.leverage || "x3",
       stopLoss: parsed.stopLoss || `$${(coinData.price * 0.97).toFixed(8)} ➘`,
-      takeProfit: parsed.stopLoss ? 
-        `${parsed.takeProfit}${profitMultiplier}` : 
-        `$${(coinData.price * 1.05).toFixed(8)} ➚ (1.05x)`,
+      takeProfit: parsed.stopLoss
+        ? `${parsed.takeProfit}`
+        : `$${(coinData.price * 1.05).toFixed(8)} ➚ (1.05x)`,
       duration: parsed.duration || "4-6h",
       riskLevel: parsed.riskLevel || "🟠 Medium",
-      summary: parsed.summary || `Analysis for ${coinData.symbol} at $${coinData.price.toFixed(8)}${coinData.change24h ? ` (${coinData.change24h > 0 ? '+' : ''}${coinData.change24h.toFixed(2)}%)` : ''}`,
-      tradeType: parsed.entryStrategy?.toLowerCase().includes('short') ? 'Short' : 'Long',
-      priceChange: coinData.change24h ? 
-        `${coinData.change24h > 0 ? '+' : ''}${coinData.change24h.toFixed(2)}%` : '',
-      priceChangeColor: coinData.change24h ? 
-        (coinData.change24h > 0 ? 'text-green-400' : 'text-red-400') : 'text-gray-400',
-      riskColor: parsed.riskLevel.includes('🟢') ? 'text-green-400' : 
-                parsed.riskLevel.includes('🟠') ? 'text-yellow-400' : 'text-red-400',
+      summary:
+        parsed.summary ||
+        `Analysis for ${coinData.symbol} at $${coinData.price.toFixed(8)}${
+          coinData.change24h
+            ? ` (${
+                coinData.change24h > 0 ? "+" : ""
+              }${coinData.change24h.toFixed(2)}%)`
+            : ""
+        }`,
+      tradeType: parsed.entryStrategy?.toLowerCase().includes("short")
+        ? "Short"
+        : "Long",
+      priceChange: coinData.change24h
+        ? `${coinData.change24h > 0 ? "+" : ""}${coinData.change24h.toFixed(
+            2
+          )}%`
+        : "",
+      priceChangeColor: coinData.change24h
+        ? coinData.change24h > 0
+          ? "text-green-400"
+          : "text-red-400"
+        : "text-gray-400",
+      riskColor: parsed.riskLevel.includes("🟢")
+        ? "text-green-400"
+        : parsed.riskLevel.includes("🟠")
+        ? "text-yellow-400"
+        : "text-red-400",
     };
 
     return variables;
@@ -720,30 +825,29 @@ export async function POST(req: Request) {
     });
 
     // Create a proper chat history using all messages except the last one
-    const chatHistory = messages
-      .slice(0, -1)
-      .map((msg) => ({
-        role: msg[0] === "user" ? "human" : "assistant",
-        content: msg[1]
-      }));
+    const chatHistory = messages.slice(0, -1).map((msg) => ({
+      role: msg[0] === "user" ? "human" : "assistant",
+      content: msg[1],
+    }));
 
     // Get the last message (current user input)
     const lastMessage = messages[messages.length - 1][1];
-    
+
     // Create the chat prompt template with history
     const chatPrompt = ChatPromptTemplate.fromMessages([
       SystemMessagePromptTemplate.fromTemplate(SAMARITAN_PROMPT),
       new MessagesPlaceholder("chat_history"),
-      HumanMessagePromptTemplate.fromTemplate("{input}")
+      HumanMessagePromptTemplate.fromTemplate("{input}"),
     ]);
 
     const chain = chatPrompt.pipe(model);
 
     const coinData = await getCoinData(lastMessage);
-    
+
     if (!coinData) {
       return NextResponse.json({
-        content: "I couldn't detect a valid cryptocurrency. Please provide a valid CoinGecko or DexScreener link, a contract address (CA), or use the '$' prefix (e.g., '$BTC').",
+        content:
+          "I couldn't detect a valid cryptocurrency. Please provide a valid CoinGecko or DexScreener link, a contract address (CA), or use the '$' prefix (e.g., '$BTC').",
       });
     }
 
@@ -763,10 +867,12 @@ export async function POST(req: Request) {
     return NextResponse.json({
       content: formattedRecommendation,
       rawContent: JSON.stringify(analysisData),
-      coinData: coinData ? {
-        name: coinData.name,
-        symbol: coinData.symbol
-      } : null
+      coinData: coinData
+        ? {
+            name: coinData.name,
+            symbol: coinData.symbol,
+          }
+        : null,
     });
   } catch (error) {
     console.error("[CHAT_ERROR]", error);
