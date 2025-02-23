@@ -384,7 +384,6 @@ async function fetchTokenFromContract(
 ): Promise<CoinData | null> {
   try {
     console.log("[CONTRACT] Attempting DexScreener token lookup");
-    // First try DexScreener's token endpoint
     const dexResponse = await axios.get(
       `${DEXSCREENER_API_BASE}/tokens/${address}`
     );
@@ -415,7 +414,6 @@ async function fetchTokenFromContract(
       };
     }
 
-    // If DexScreener fails, then try chain explorers
     if (address.length >= 32 && address.length <= 44) {
       console.log(
         "[CONTRACT] Detected Solana-length address, skipping chain explorers"
@@ -481,7 +479,7 @@ async function fetchDexscreenerPairInfo(
     );
     axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
 
-    // First try the pairs endpoint
+
     const pairsUrl = `${DEXSCREENER_API_BASE}/pairs/${chain}/${pairAddress}`;
     console.log("[DEXSCREENER_PAIR_INFO] Trying pairs URL:", pairsUrl);
 
@@ -509,7 +507,7 @@ async function fetchDexscreenerPairInfo(
       };
     }
 
-    // If pairs endpoint doesn't work, try tokens endpoint
+
     if (chain.toLowerCase() === "solana") {
       const tokensUrl = `${DEXSCREENER_API_BASE}/tokens/${pairAddress}`;
       console.log("[DEXSCREENER_PAIR_INFO] Trying tokens URL:", tokensUrl);
@@ -553,11 +551,11 @@ async function fetchDexscreenerPairInfo(
   }
 }
 
-// Optimize getCoinData function
+
 async function getCoinData(userInput: string): Promise<CoinData | null> {
   console.log("[GET_COIN_DATA] Starting with input:", userInput);
 
-  // Run initial checks in parallel
+
   const [link, isContract] = await Promise.all([
     Promise.resolve(extractURL(userInput)),
     Promise.resolve(CONTRACT_ADDRESS_REGEX.test(userInput.trim())),
@@ -583,7 +581,7 @@ async function getCoinData(userInput: string): Promise<CoinData | null> {
     if (caData) return caData;
   }
 
-  // Optimize symbol extraction
+
   if (userInput.startsWith("$")) {
     const symbol = userInput.substring(1).split(/[\s,/]/)[0];
     const [coinGeckoData, dexScreenerData] = await Promise.all([
@@ -594,7 +592,7 @@ async function getCoinData(userInput: string): Promise<CoinData | null> {
     return coinGeckoData || dexScreenerData || null;
   }
 
-  // Only use AI extraction as last resort
+
   const extractChain = ChatPromptTemplate.fromMessages([
     ["system", EXTRACT_PROMPT],
     ["human", "{input}"],
@@ -632,7 +630,7 @@ async function formatTradingRecommendation(
 ): Promise<string> {
   const { coolvetica } = await import("@/app/fonts");
 
-  // Generate image HTML
+
   const coinImageHtml = coinData.imageUrl
     ? `<img src="${coinData.imageUrl}" alt="${coinData.symbol}" class="w-12 h-12 rounded-full" />`
     : `<div class="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center text-lg font-semibold text-amber-400">${coinData.symbol}</div>`;
@@ -683,7 +681,7 @@ async function formatTradingRecommendation(
           : "text-red-400"
     );
 
-  // Generate summary
+
   const summaryPrompt = ChatPromptTemplate.fromMessages([
     ["system", SUMMARY_PROMPT],
     ["human", "{input}"],
@@ -697,7 +695,7 @@ async function formatTradingRecommendation(
   return `${tableHTML}\n\n<div class="mt-6 p-4 bg-indigo-500/5 rounded-lg backdrop-blur-sm border border-indigo-500/10">\n  <h3 class="text-lg font-semibold text-indigo-300 mb-2">Summary</h3>\n  <p class="text-gray-300 leading-relaxed">${summaryResponse.content}</p>\n</div>`;
 }
 
-// Optimize generateTradingRecommendation
+
 async function generateTradingRecommendation(
   coinData: CoinData,
   chatHistory: { role: string; content: string }[],
@@ -732,13 +730,13 @@ async function generateTradingRecommendation(
         .trim()
     );
 
-    // Extract entry price from strategy
+
     const entryPriceMatch = parsed.entryStrategy?.match(/\$([\d.]+)/);
     const entryPrice = entryPriceMatch
       ? parseFloat(entryPriceMatch[1])
       : coinData.price;
 
-    // Extract take profit price and calculate multiplier
+
     const takeProfitPriceMatch = parsed.takeProfit?.match(/\$([\d.]+)/);
     const takeProfitPrice = takeProfitPriceMatch
       ? parseFloat(takeProfitPriceMatch[1])
@@ -820,16 +818,16 @@ export async function POST(req: Request) {
       maxOutputTokens: 500,
     });
 
-    // Create a proper chat history using all messages except the last one
+
     const chatHistory = messages.slice(0, -1).map((msg) => ({
       role: msg[0] === "user" ? "human" : "assistant",
       content: msg[1],
     }));
 
-    // Get the last message (current user input)
+
     const lastMessage = messages[messages.length - 1][1];
 
-    // Create the chat prompt template with history
+
     const chatPrompt = ChatPromptTemplate.fromMessages([
       SystemMessagePromptTemplate.fromTemplate(SAMARITAN_PROMPT),
       new MessagesPlaceholder("chat_history"),
