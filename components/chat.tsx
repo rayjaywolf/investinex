@@ -124,7 +124,7 @@ function QuickAccessCoins({ onSelect }: { onSelect: (coin: string) => void }) {
 const MessageContent = ({ content }: { content: string }) => {
   // Remove any markdown code block markers and HTML tags that might be in the text
   const cleanContent = content.replace(/```html\n|```\n|```/g, '');
-  
+
   // Sanitize and parse the HTML
   const sanitizedContent = DOMPurify.sanitize(cleanContent, {
     ADD_TAGS: ['div', 'h1', 'h2', 'h3', 'p', 'ul', 'li', 'strong', 'em', 'span'],
@@ -194,14 +194,14 @@ export function Chat() {
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
-    
+
     const messageId = crypto.randomUUID();
-    const userMessage = { 
+    const userMessage = {
       id: messageId,
-      role: "user" as const, 
-      content: input 
+      role: "user" as const,
+      content: input
     };
-    
+
     setMessages(prev => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
@@ -216,31 +216,31 @@ export function Chat() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           messages: messageHistory
         })
       });
 
       if (!response.ok) throw new Error("Failed to get response");
-      
+
       const data = await response.json();
-      
+
       if (data.coinData?.name) {
         setDetectedCrypto(data.coinData.name);
       }
 
-      setMessages(prev => [...prev, { 
+      setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
-        role: "assistant", 
+        role: "assistant",
         content: data.content,
         rawContent: data.rawContent,
         isComplete: true
       }]);
     } catch (error) {
       console.error("Chat error:", error);
-      setMessages(prev => [...prev, { 
+      setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
-        role: "assistant", 
+        role: "assistant",
         content: "Sorry, I encountered an error. Please try again.",
         isComplete: true
       }]);
@@ -309,11 +309,11 @@ export function Chat() {
     ),
     // Add support for custom containers
     section: ({ className, children, ...props }) => (
-      <section 
+      <section
         className={cn(
           "bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4",
           className
-        )} 
+        )}
         {...props}
       >
         {children}
@@ -341,9 +341,9 @@ export function Chat() {
     const formattedChat = messages.map(msg => {
       const role = msg.role === 'assistant' ? 'AI' : 'You';
       const content = msg.rawContent || msg.content;
-      
+
       let formattedMessage = `${role}: ${content}`;
-      
+
       if (msg.tradingData) {
         formattedMessage += '\n\nTrading Details:';
         formattedMessage += `\n• Cryptocurrency: ${msg.tradingData.cryptocurrency}`;
@@ -354,13 +354,13 @@ export function Chat() {
         formattedMessage += `\n• Duration: ${msg.tradingData.duration}`;
         formattedMessage += `\n• Risk Level: ${msg.tradingData.risk}`;
       }
-      
+
       return formattedMessage;
     }).join('\n\n---\n\n');
 
     const timestamp = new Date().toLocaleString();
     const chatLog = `Chat Log - ${timestamp}\n\n${formattedChat}`;
-    
+
     navigator.clipboard.writeText(chatLog).then(() => {
       toast.success('Chat log copied to clipboard', {
         description: 'The chat history has been saved to your clipboard',
@@ -398,7 +398,7 @@ export function Chat() {
       <div className="fixed inset-0 -z-10">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
           <div className="relative">
-            <div 
+            <div
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full blur-[120px]"
               style={{
                 background: "radial-gradient(circle at center, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15), transparent)"
@@ -439,7 +439,7 @@ export function Chat() {
                       Welcome to Investinex
                     </p>
                     <p className="text-md text-gray-400 max-w-[600px]">
-                      I can help you with short-term crypto trading recommendations. 
+                      I can help you with short-term crypto trading recommendations.
                       Prefix the coin name with a $ or enter a coingecko link to get accurate results.
                     </p>
                     <div className="pt-2">

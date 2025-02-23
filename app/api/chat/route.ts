@@ -679,8 +679,8 @@ async function formatTradingRecommendation(
       analysisData.riskLevel.includes("🟢")
         ? "text-green-400"
         : analysisData.riskLevel.includes("🟠")
-        ? "text-yellow-400"
-        : "text-red-400"
+          ? "text-yellow-400"
+          : "text-red-400"
     );
 
   // Generate summary
@@ -704,16 +704,14 @@ async function generateTradingRecommendation(
   model: ChatGoogleGenerativeAI,
   lastMessage: string
 ): Promise<AnalysisData> {
-  const marketData = `Current market data for ${coinData.name} (${
-    coinData.symbol
-  }${coinData.baseSymbol ? "/" + coinData.baseSymbol : ""}):
-- Price: $${coinData.price.toFixed(8)}${
-    coinData.change24h
+  const marketData = `Current market data for ${coinData.name} (${coinData.symbol
+    }${coinData.baseSymbol ? "/" + coinData.baseSymbol : ""}):
+- Price: $${coinData.price.toFixed(8)}${coinData.change24h
       ? ` (${coinData.change24h > 0 ? "+" : ""}${coinData.change24h.toFixed(
-          2
-        )}%)`
+        2
+      )}%)`
       : ""
-  }`;
+    }`;
 
   const analysisChain = ChatPromptTemplate.fromMessages([
     ["system", SAMARITAN_PROMPT],
@@ -763,20 +761,18 @@ async function generateTradingRecommendation(
       riskLevel: parsed.riskLevel || "🟠 Medium",
       summary:
         parsed.summary ||
-        `Analysis for ${coinData.symbol} at $${coinData.price.toFixed(8)}${
-          coinData.change24h
-            ? ` (${
-                coinData.change24h > 0 ? "+" : ""
-              }${coinData.change24h.toFixed(2)}%)`
-            : ""
+        `Analysis for ${coinData.symbol} at $${coinData.price.toFixed(8)}${coinData.change24h
+          ? ` (${coinData.change24h > 0 ? "+" : ""
+          }${coinData.change24h.toFixed(2)}%)`
+          : ""
         }`,
       tradeType: parsed.entryStrategy?.toLowerCase().includes("short")
         ? "Short"
         : "Long",
       priceChange: coinData.change24h
         ? `${coinData.change24h > 0 ? "+" : ""}${coinData.change24h.toFixed(
-            2
-          )}%`
+          2
+        )}%`
         : "",
       priceChangeColor: coinData.change24h
         ? coinData.change24h > 0
@@ -786,8 +782,8 @@ async function generateTradingRecommendation(
       riskColor: parsed.riskLevel.includes("🟢")
         ? "text-green-400"
         : parsed.riskLevel.includes("🟠")
-        ? "text-yellow-400"
-        : "text-red-400",
+          ? "text-yellow-400"
+          : "text-red-400",
     };
 
     return variables;
@@ -869,9 +865,9 @@ export async function POST(req: Request) {
       rawContent: JSON.stringify(analysisData),
       coinData: coinData
         ? {
-            name: coinData.name,
-            symbol: coinData.symbol,
-          }
+          name: coinData.name,
+          symbol: coinData.symbol,
+        }
         : null,
     });
   } catch (error) {

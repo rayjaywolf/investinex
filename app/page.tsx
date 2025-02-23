@@ -21,7 +21,7 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { CircleBackground } from "@/components/ui/circle-background";
-import { supercharge,coolvetica } from "@/app/fonts";
+import { supercharge, coolvetica } from "@/app/fonts";
 import EligibilityBadge from "@/components/EligibilityBadge";
 import { Badge } from "@/components/ui/badge";
 
@@ -108,11 +108,11 @@ export default function Home() {
           <div className="container px-4 sm:px-8 relative z-10">
             <div className="flex flex-col items-center space-y-6 sm:space-y-8 text-center">
               <div className="space-y-4 sm:space-y-6">
-                <Badge 
-                  variant="outline" 
+                <Badge
+                  variant="outline"
                   className="mb-4 border-blue-500/20 bg-blue-500/10 text-blue-400 text-sm px-4 py-1.5 font-medium"
                 >
-                  <span className={`text-blue-300 font-bold`}>$INTX</span>&nbsp;&nbsp;RELEASE - SOON
+                  <span className={`text-blue-300 font-bold`}>$INTX</span>&nbsp;&nbsp;RELEASE - 24.02.25
                 </Badge>
                 <h1 className="hero-content text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-tighter">
                   <span className={`bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 bg-[length:200%] animate-[gradient-move_3s_ease-in-out_infinite] ${coolvetica.className} tracking-wide`}>
@@ -190,7 +190,7 @@ export default function Home() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0">
             <div className="relative">
               {/* Glowing orb with purple/blue gradient */}
-              <div 
+              <div
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full blur-[120px]"
                 style={{
                   background: "radial-gradient(circle at center, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15), transparent)"
@@ -214,9 +214,9 @@ export default function Home() {
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Link href="/chat" className="w-full sm:w-auto">
-                    <Button 
-                      variant="gradientWhite" 
-                      size="lg" 
+                    <Button
+                      variant="gradientWhite"
+                      size="lg"
                       className="w-full sm:w-auto rounded-full font-medium text-base tracking-wide"
                     >
                       Try It Now
@@ -292,7 +292,7 @@ export default function Home() {
                 Twitter
               </a>
               <a
-                href="/whitepaper.pdf"
+                href="https://docs.investinex.app"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-zinc-400 hover:text-primary transition-all duration-200"

@@ -34,12 +34,38 @@ export default function ConnectWalletButton() {
   const [isChecking, setIsChecking] = useState(false);
 
   const checkEligibility = async (walletAddress: string) => {
-    // Always set as eligible
-    localStorage.setItem("isEligible", "true");
-    localStorage.setItem("walletAddress", walletAddress);
-    localStorage.setItem("phantomConnected", "true");
-    window.dispatchEvent(new Event("walletStatusChange"));
-    return true;
+    try {
+      setIsChecking(true);
+      const response = await fetch("/api/check-eligibility", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ walletAddress }),
+      });
+
+      const data = await response.json();
+
+      const eligibilityStatus = Boolean(data.isEligible);
+      localStorage.setItem("isEligible", eligibilityStatus.toString());
+      localStorage.setItem("walletAddress", walletAddress);
+      localStorage.setItem("phantomConnected", "true");
+
+      await fetch("/api/set-eligibility", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isEligible: eligibilityStatus }),
+      });
+
+      return eligibilityStatus;
+    } catch (error) {
+      console.error("Error checking eligibility:", error);
+      return false;
+    } finally {
+      setIsChecking(false);
+    }
   };
 
   useEffect(() => {
@@ -73,7 +99,7 @@ export default function ConnectWalletButton() {
       provider.on("disconnect", () => {
         setConnected(false);
         setPublicKey("");
-        
+
         // Clear all local storage
         localStorage.removeItem("isEligible");
         localStorage.removeItem("walletAddress");
@@ -86,7 +112,7 @@ export default function ConnectWalletButton() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ isEligible: false }),
-        }).catch(error => 
+        }).catch(error =>
           console.error("Cookie cleanup failed:", error)
         );
       });
@@ -98,8 +124,8 @@ export default function ConnectWalletButton() {
     // Cleanup function
     return () => {
       if (provider) {
-        provider.on("disconnect", () => {});
-        provider.on("connect", () => {});
+        provider.on("disconnect", () => { });
+        provider.on("connect", () => { });
       }
     };
   }, []);
@@ -114,13 +140,13 @@ export default function ConnectWalletButton() {
 
         const newAddress = provider.publicKey.toString();
         setPublicKey(newAddress);
-        
+
         // Immediately clear old status while checking
         localStorage.removeItem("isEligible");
         window.dispatchEvent(new Event("walletStatusChange"));
-        
+
         const isEligible = await checkEligibility(newAddress);
-        
+
         if (!isEligible) {
           // Force immediate cookie invalidation
           await fetch("/api/set-eligibility", {
@@ -128,7 +154,7 @@ export default function ConnectWalletButton() {
             body: JSON.stringify({ isEligible: false }),
           });
         }
-        
+
         // Update all listeners
         window.dispatchEvent(new Event("storage"));
         window.dispatchEvent(new CustomEvent("walletStatusChange", {
@@ -161,10 +187,10 @@ export default function ConnectWalletButton() {
       const newAddress = provider.publicKey?.toString() || "";
       setPublicKey(newAddress);
       setConnected(true);
-      
+
       // Immediately check eligibility for new wallet
       const isEligible = await checkEligibility(newAddress);
-      
+
       // Force UI updates
       window.dispatchEvent(new Event("storage"));
       window.dispatchEvent(new Event("walletStatusChange"));
