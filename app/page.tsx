@@ -31,6 +31,7 @@ export default function Home() {
   const heroRef = useRef(null);
   const featuresRef = useRef(null);
   const statsRef = useRef(null);
+  const showcaseRef = useRef(null);
 
   useEffect(() => {
     // Hero section animation
@@ -74,10 +75,36 @@ export default function Home() {
       });
     }, statsRef);
 
+    // Showcase section animation
+    const showcaseContext = gsap.context(() => {
+      gsap.from(".showcase-content", {
+        scrollTrigger: {
+          trigger: showcaseRef.current,
+          start: "top center+=100",
+        },
+        y: 50,
+        opacity: 0,
+        duration: 0.8,
+        ease: "power3.out",
+      });
+
+      ScrollTrigger.create({
+        trigger: ".showcase-video",
+        start: "top center+=100",
+        onEnter: () => {
+          const video = document.querySelector(".showcase-video video") as HTMLVideoElement;
+          if (video) {
+            video.play();
+          }
+        }
+      });
+    }, showcaseRef);
+
     return () => {
       heroContext.revert();
       featuresContext.revert();
       statsContext.revert();
+      showcaseContext.revert();
     };
   }, []);
 
@@ -135,6 +162,32 @@ export default function Home() {
                 <div className="w-full sm:w-auto">
                   <ConnectWalletButton />
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Showcase Section */}
+        <section ref={showcaseRef} className="w-full py-16 sm:py-20 px-4 sm:px-8 border-b border-white/10">
+          <div className="container px-4 sm:px-8 relative z-10">
+            <div className="flex flex-col items-center space-y-8 sm:space-y-12">
+              <h2 className="showcase-content text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter text-center">
+                See it in Action
+              </h2>
+              <p className="showcase-content max-w-[700px] text-gray-400 text-base sm:text-lg md:text-xl text-center">
+                Watch how our AI-powered platform analyzes market data in real-time and provides actionable trading insights with precision and speed.
+              </p>
+              <div className="showcase-content showcase-video w-full max-w-[1000px] rounded-2xl overflow-hidden border border-white/10 bg-card">
+                <video
+                  className="w-full aspect-video object-cover"
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                >
+                  <source src="/showcase.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
               </div>
             </div>
           </div>
@@ -266,6 +319,7 @@ export default function Home() {
             </div>
           </div>
         </section>
+
       </main>
       <footer className="w-full py-6 border-t border-white/10">
         <div className="container px-8">
