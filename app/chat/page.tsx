@@ -3,7 +3,7 @@
 import { Chat } from "@/components/chat";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, Suspense } from "react";
 import { Header } from "@/components/header";
 import {
   AlertDialog,
@@ -27,9 +27,11 @@ export default function ChatPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      
+
       <div className="flex-1 container mx-auto p-4 px-12 pt-20">
-        <Chat key={key} />
+        <Suspense fallback={<div className="flex items-center justify-center h-full">Loading...</div>}>
+          <Chat key={key} />
+        </Suspense>
       </div>
     </div>
   );
