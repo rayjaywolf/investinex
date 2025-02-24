@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const GMGN_API_URL = "https://gmgn.ai/defi/router/v1/sol/tx/get_swap_route";
-const TOKEN_ADDRESS = "HLKY3NXpwdhzEiAzrc1xuewDE2MhQpo36RtZeFXtpump";
+const TOKEN_ADDRESS = "26m92YnLcRQMGJJRXSrMh1DDRACGMtY6RJ5q4ijkpump";
 const WSOL_ADDRESS = "So11111111111111111111111111111111111111112";
 
 export async function POST(req: Request) {
