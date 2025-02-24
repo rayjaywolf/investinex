@@ -141,7 +141,7 @@ export default function Home() {
                 >
                   <span className={`text-blue-300 font-bold`}>$INTX</span>&nbsp;&nbsp;CA:
                   <span className="text-green-300 font-bold">
-                    &nbsp;&nbsp;Soon</span>
+                    &nbsp;&nbsp;24/02/2025</span>
                 </Badge>
                 <h1 className="hero-content text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-tighter">
                   <span className={`bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 bg-[length:200%] animate-[gradient-move_3s_ease-in-out_infinite] ${coolvetica.className} tracking-wide`}>
