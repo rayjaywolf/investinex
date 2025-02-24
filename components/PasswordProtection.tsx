@@ -6,7 +6,7 @@ interface PasswordProtectionProps {
   children: React.ReactNode;
 }
 
-const PASSWORD = "bigballs";
+const PASSWORD = "ballsdeep";
 const STORAGE_KEY = "auth_token";
 
 export default function PasswordProtection({ children }: PasswordProtectionProps) {
@@ -50,7 +50,7 @@ export default function PasswordProtection({ children }: PasswordProtectionProps
           <h2 className="text-3xl font-bold text-white mb-2">Password Required</h2>
           <p className="text-gray-400">Please enter the password to continue</p>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div>
             <label htmlFor="password" className="sr-only">
@@ -69,13 +69,13 @@ export default function PasswordProtection({ children }: PasswordProtectionProps
               tabIndex={0}
             />
           </div>
-          
+
           {error && (
             <p className="text-red-500 text-sm text-center" role="alert">
               {error}
             </p>
           )}
-          
+
           <button
             type="submit"
             className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
