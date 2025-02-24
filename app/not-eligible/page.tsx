@@ -19,7 +19,7 @@ export default function NotEligiblePage() {
             </span>
           </h1>
           <p className="text-zinc-400 text-lg">
-            You need $INTX token to use our chat and access advanced trading features.
+            You need to hold $INTX token to use our chat and access advanced trading features.
           </p>
         </div>
 
