@@ -210,7 +210,7 @@ export function Header() {
             </Dialog>
 
             <a
-              href="https://pumpfun.com/token/intx"
+              href="https://dexscreener.com/solana/26m92YnLcRQMGJJRXSrMh1DDRACGMtY6RJ5q4ijkpump"
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:block"
