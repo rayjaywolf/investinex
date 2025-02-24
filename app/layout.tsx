@@ -41,7 +41,7 @@ export default function RootLayout({
       >
         <Analytics />
         <SpeedInsights />
-        <PasswordProtection>{children}</PasswordProtection>
+        {children}
         <Toaster />
       </body>
     </html>
