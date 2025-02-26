@@ -1,7 +1,6 @@
 "use client";
 import { Header } from "@/components/header";
 import StartTradingButton from "@/components/StartTradingButton";
-import ConnectWalletButton from "@/components/ConnectWalletButton";
 import {
   ArrowRight,
   Clock,
@@ -160,9 +159,6 @@ export default function Home() {
               <div className="hero-content flex flex-col sm:flex-row gap-4 sm:space-x-4 w-full sm:w-auto px-4">
                 <div className="w-full sm:w-auto">
                   <StartTradingButton />
-                </div>
-                <div className="w-full sm:w-auto">
-                  <ConnectWalletButton />
                 </div>
               </div>
             </div>
